@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "@google-cloud/agones-sdk": "^1.56.0",
+    "@passport-next/passport-google-oauth2": "^1.0.0",
+    "bcrypt": "^6.0.0",
+    "crypto": "^1.0.1",
+    "express.js": "^1.0.0",
+    "mongodb": "^7.1.0",
+    "passport": "^0.7.0",
+    "redis": "^5.11.0",
+    "uWebSockets.js": "github:uNetworking/uWebSockets.js#v20.30.0",
+    "ws": "^8.19.0"
+  }
+}

@@ -1,0 +1,46 @@
+# ─── AGONES FLEET ────────────────────────────────────────────────────────────
+apiVersion: "agones.dev/v1"
+kind: Fleet
+metadata:
+  name: prz-child-fleet
+spec:
+  scheduling: Packed
+
+  template:
+    spec:
+      ports:
+      - name: default
+        containerPort: 5000
+        protocol: TCP
+      template:
+        spec:
+          terminationGracePeriodSeconds: 15
+          restartPolicy: Never
+          containers:
+          - name: child
+            image: przacr.azurecr.io/prz-child:latest
+            env:
+            - name: REDIS_URL
+              value: "redis://redis:6379"
+            - name: MONGO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: cosmos-db-secret
+                  key: MONGO_URL
+            - name: USE_AGONES       
+              value: "true"
+
+---
+# ─── AUTOSKALER AGONES ───────────────────────────────────────────────────────
+apiVersion: "autoscaling.agones.dev/v1"
+kind: FleetAutoscaler
+metadata:
+  name: prz-child-autoscaler
+spec:
+  fleetName: prz-child-fleet
+  policy:
+    type: Buffer
+    buffer:
+      bufferSize: 1
+      minReplicas: 1
+      maxReplicas: 20

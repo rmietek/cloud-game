@@ -1,0 +1,51 @@
+# ─── SERWER MATKI ─────────────────────────────────────────────────────────────
+# Bezstanowy — można skalować do wielu replik dowolnie.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mother
+spec:
+  type: LoadBalancer
+  selector:
+    app: mother
+  ports:
+    - name: http
+      port: 80           
+      targetPort: 9876    
+    - name: client-ws
+      port: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mother
+spec:
+  selector:
+    matchLabels:
+      app: mother
+  template:
+    metadata:
+      labels:
+        app: mother
+    spec:
+      containers:
+      - name: mother
+        image: przacr.azurecr.io/prz-mother:latest
+        env:
+        - name: MONGO_URL
+          valueFrom:
+            secretKeyRef:
+              name: cosmos-db-secret
+              key: MONGO_URL
+        - name: REDIS_URL
+          value: "redis://redis:6379"
+        ports:
+        - containerPort: 9876
+        - containerPort: 3001
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"

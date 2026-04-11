@@ -1,0 +1,118 @@
+name: CI/CD — Build, Push & Deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+env:
+  ACR_NAME: przacr
+  ACR_URL: przacr.azurecr.io
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v6.0.2
+
+      - name: Azure Login
+        uses: azure/login@v3.0.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login do ACR
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Ustal tag obrazu (short SHA)
+        id: meta
+        run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Build i push — prz-mother
+        run: |
+          docker build -f Dockerfile.mother \
+            -t ${{ env.ACR_URL }}/prz-mother:${{ steps.meta.outputs.tag }} \
+            -t ${{ env.ACR_URL }}/prz-mother:latest \
+            .
+          docker push ${{ env.ACR_URL }}/prz-mother:${{ steps.meta.outputs.tag }}
+          docker push ${{ env.ACR_URL }}/prz-mother:latest
+
+      - name: Build i push — prz-child
+        run: |
+          docker build -f Dockerfile.child \
+            -t ${{ env.ACR_URL }}/prz-child:${{ steps.meta.outputs.tag }} \
+            -t ${{ env.ACR_URL }}/prz-child:latest \
+            .
+          docker push ${{ env.ACR_URL }}/prz-child:${{ steps.meta.outputs.tag }}
+          docker push ${{ env.ACR_URL }}/prz-child:latest
+
+  update-gitops:
+    name: Update image tags (Kustomize)
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v6.0.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Zainstaluj Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Zaktualizuj tag prz-mother
+        working-directory: gitops/overlays/prod
+        run: |
+          kustomize edit set image \
+            ${{ env.ACR_URL }}/prz-mother=${{ env.ACR_URL }}/prz-mother:${{ needs.build-and-push.outputs.image_tag }}
+
+      - name: Zaktualizuj tag prz-child
+        working-directory: gitops/overlays/prod
+        run: |
+          kustomize edit set image \
+            ${{ env.ACR_URL }}/prz-child=${{ env.ACR_URL }}/prz-child:${{ needs.build-and-push.outputs.image_tag }}
+
+      - name: Commit i push zaktualizowanego kustomization.yaml
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add gitops/overlays/prod/kustomization.yaml
+          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ needs.build-and-push.outputs.image_tag }} [skip ci]"
+          git push
+
+  apply-argocd:
+    name: Apply ArgoCD Application
+    runs-on: ubuntu-latest
+    needs: update-gitops
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v6.0.2
+
+      - name: Azure Login
+        uses: azure/login@v3.0.0
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Pobierz kubeconfig AKS
+        run: |
+          az aks get-credentials \
+            --resource-group PRZ \
+            --name PRZAKSCluster \
+            --overwrite-existing
+
+      - name: Apply ArgoCD Application
+        run: kubectl apply -f argocd/application.yaml

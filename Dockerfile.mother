@@ -1,0 +1,10 @@
+FROM node:20-bullseye-slim
+WORKDIR /app
+RUN apt-get update && apt-get install -y git
+COPY package.json .
+RUN npm install
+RUN npm install @google-cloud/agones-sdk
+RUN npm install redis 
+COPY . .
+EXPOSE 9876 3001 3002
+CMD ["node", "mother.js"]

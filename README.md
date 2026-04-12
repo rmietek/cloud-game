@@ -1611,6 +1611,81 @@ for (let ix = p.g_length8(); ix--;) {
 --- 
 
 
+
+---
+
+# 🔌 Własny binarny protokół sieciowy — `binary.js`
+
+> Zamiast JSONa wybraliśmy własny serializer binarny. Poniżej tłumaczymy dlaczego — i jak dokładnie go zbudowaliśmy.
+
+---
+
+## Problem, który musieliśmy rozwiązać
+
+Nasz serwer gry (`child.js`) wysyła dane o pozycjach wszystkich graczy **co 16 ms** (60 razy na sekundę). Przy 15 graczach i 37 botach mamy **52 obiekty ruchu na każdy tick**.
+
+Każdy obiekt to cztery pola: `id`, `x`, `y`, `event_use`.
+
+Stanęliśmy przed pytaniem: **w jakim formacie przesyłać te dane przez WebSocket?**
+
+---
+
+## Dlaczego odrzuciliśmy JSON
+
+JSON był pierwszym, oczywistym kandydatem — ale po analizie stwierdziliśmy, że jest za kosztowny dla naszego przypadku użycia.
+
+### Jak wyglądałby JSON dla 3 graczy
+
+```json
+[
+  {"id":5,"x":256.0,"y":-400.0,"event_use":-2},
+  {"id":12,"x":288.0,"y":-416.0,"event_use":-3},
+  {"id":1,"x":252.0,"y":-384.0,"event_use":-1}
+]
+```
+
+**Rozmiar:** ~105 bajtów
+
+Zidentyfikowaliśmy trzy główne źródła marnotrawstwa:
+
+- **Nazwy pól powtarzają się przy każdym obiekcie.** Sama nazwa `"event_use"` to 11 znaków — przy 3 graczach płacimy 33 bajty tylko za tę nazwę, choć frontend z góry wie, co ona oznacza.
+- **Liczby jako tekst.** Wartość `256.0` to 5 znaków (5 bajtów), podczas gdy `float32` zajmuje dokładnie 4 bajty.
+- **Separatory składniowe bez wartości informacyjnej.** `{`, `}`, `[`, `]`, `:`, `,` — wszystkie potrzebne parserowi, żadne niepotrzebne nam.
+
+Frontend i serwer z góry uzgodniły kolejność pól — ta wiedza jest zakodowana w funkcjach serializująco-deserializujących. Nazwy pól w JSONie są więc **całkowicie redundantne**.
+
+### Nasz format binarny dla tych samych 3 graczy
+
+```
+03                        ← liczba graczy: 1 bajt (uint8)
+05                        ← id=5: 1 bajt (int8)
+43 80 00 00               ← x=256.0: 4 bajty (float32 big-endian)
+C3 C8 00 00               ← y=-400.0: 4 bajty (float32 big-endian)
+FE                        ← event_use=-2: 1 bajt (int8)
+0C 43 90 00 00 C3 D0 00 00 FD   ← gracz id=12 (10 bajtów)
+01 43 7C 00 00 C3 C0 00 00 FF   ← gracz id=1  (10 bajtów)
+```
+
+**Rozmiar:** 31 bajtów — czyli **3.5× mniej** niż JSON.
+
+---
+
+## Porównanie przy pełnej grze (52 graczy/botów, 60 tick/s)
+
+| Format | Rozmiar pakietu | Dane/sekundę | Dane/minutę |
+|--------|----------------|--------------|-------------|
+| JSON | ~1 820 B | ~109 KB/s | ~6.5 MB |
+| MessagePack | ~700 B | ~42 KB/s | ~2.5 MB |
+| Protobuf | ~530 B | ~32 KB/s | ~1.9 MB |
+| **Nasz binarny** | **~521 B** | **~31 KB/s** | **~1.9 MB** |
+
+Osiągamy **identyczny rozmiar co Protobuf**, ale bez żadnych zewnętrznych zależności i bez kompilatora schematu.
+
+Przy 15 podłączonych graczach serwer wysyła **15 różnych wersji pakietu pozycji** (każdy widzi inne jednostki — patrz mechanizm dual-buffer). Gdybyśmy używali JSON, `JSON.stringify` byłby wywoływany 15 razy na tick — **900 razy na sekundę**. Nasz serializer przygotowuje część globalną **raz**, a część per-gracza dokłada osobno.
+
+---
+
+
 ---
 ---
 

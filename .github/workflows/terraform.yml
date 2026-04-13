@@ -1,27 +1,64 @@
-name: Terraform
 
-on:
-  workflow_dispatch:
-    inputs:
+
+# ─── ZASADA DZIALANIA ────────────────────────────────────────────────────────
+# Plik służy do TWORZENIA całej infrastruktury serwera w Azure.
+# W przeciwieństwie do ci.yml — NIE uruchamia się automatycznie.
+# Uruchamiany recznie (workflow_dispatch) z wyborem akcji: plan, apply lub destroy. 
+# Trzeba go ręcznie uruchomić w GitHub → Actions → "Terraform" → "Run workflow".
+#
+# Mamy do wyboru 3 opcje (wybierane z UI GH przy uruchamianiu):
+#
+#   "plan"    — TYLKO PODGLĄD. Pokazuje co by się zmieniło, niczego nie tworzy ani nie usuwa.
+#               Żeby sprawdzić co Terraform zamierza zrobić przed właściwym apply.
+#
+#   "apply"   — TWORZY infrastrukturę. Stawia klaster serwerów (AKS), bazę danych (CosmosDB),
+#               magazyn obrazów (ACR), instaluje ArgoCD i Agones. Trwa ~5 minut.
+#
+#   "destroy" — USUWA WSZYSTKO. Kasuje cały klaster, bazę danych i magazyn obrazów.
+#               NIEODWRACALNE — dane graczy w bazie znikają na zawsze
+#
+# BY ZADZIALALO USTAWIAM w GitHub → Settings → Secrets:
+#   AZURE_CLIENT_ID       — ID konta technicznego Azure  
+#   AZURE_CLIENT_SECRET   — hasło do tego konta
+#   AZURE_TENANT_ID       — ID organizacji w Azure
+#   AZURE_SUBSCRIPTION_ID — ID subskrypcji Azure  
+#   AZURE_CREDENTIALS     — te same dane ale w formacie JSON (dla logowania)
+#   GH_PAT                — Token GitHub żeby ArgoCD mógł czytać to repozytorium
+#
+# Polecenie do wygenerowania secrets w azure:
+# az ad sp create-for-rbac   --name "github-actions-prz"   --role AcrPush   --scopes /subscriptions/5002582c-0291-4207-850e-068357e4a7c0/resourceGroups/PRZ/providers/Microsoft.ContainerRegistry/registries/przacr   --sdk-auth
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Terraform
+ 
+on:                  # Definiuje co wyzwala workflow
+  workflow_dispatch: # tylko reczne uruchamianie przez UI GitHub Actions
+    inputs:          # parametry wejsciowe - elementy ktore uzytkownik wybiera recznie przed uruchoomieniem
       action:
         description: 'Co wykonać?'
         required: true
         default: 'plan'
         type: choice
         options:
-          - plan
-          - apply
-          - destroy
+          - plan    # Bezpieczny podgląd — tylko pokazuje co by się zmieniło
+          - apply   # Tworzy/aktualizuje serwery  
+          - destroy # Usuwa WSZYSTKO — NIEODWRACALNE, dane przepadają
+
 
 permissions:
-  contents: read
+  contents: read # Ten workflow tylko czyta repozytorium, nic do niego nie zapisuje
 
 env:
+  # Dane logowania do Azure — Terraform czyta je automatycznie z tych zmiennych.
+  # Nie wpisujemy haseł bezpośrednio w kodzie — byłoby to niebezpieczne mimo iz kod jest prywatny.
+  # Zamiast tego używamy "Secrets" — zaszyfrowanych zmiennych w ustawieniach GitHub.
   ARM_CLIENT_ID:       ${{ secrets.AZURE_CLIENT_ID }}
   ARM_CLIENT_SECRET:   ${{ secrets.AZURE_CLIENT_SECRET }}
   ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
   ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
   TF_VAR_github_pat:   ${{ secrets.GH_PAT }}
+  # TF_VAR_github_pat → Terraform widzi to jako zmienną "github_pat" (z variables.tf)
+
 
 jobs:
   terraform:
@@ -36,7 +73,17 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-      - name: Utwórz backend storage (idempotentny)
+
+      # ── PRZYGOTOWANIE MIEJSCA NA PAMIĘĆ TERRAFORMA ──────────────────────────
+      # Terraform zapamiętuje co stworzył w pliku zwanym "stanem" (state).
+      # Ten plik MUSI być gdzieś bezpiecznie przechowany — nie może być w repo Git
+      # bo zawiera hasła i klucze. Przechowujemy go w Azure.
+      #
+      # Problem: to miejsce (Storage Account) musi istnieć ZANIM Terraform zacznie działać.
+      # Ale nie możemy go stworzyć Terraformem (bo Terraform nie ma jeszcze gdzie trzymać stanu).
+      # Rozwiązanie: tworzymy je ręcznie komendą az (tylko ten jeden raz).
+      # Krok jest bezpieczny do wielokrotnego uruchamiania — jeśli już istnieje, nic nie robi.
+      - name: Utwórz backend storage  
         run: |
           az group create \
             --name PRZ-tfstate \
@@ -59,29 +106,44 @@ jobs:
 
           echo "Backend storage gotowy"
 
+      # Instaluje Terraform na maszynie wirtualnej GitHub Actions
+      # Bo maszyna jest czysta
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "~1.7"
 
+
+      # Pierwsze polecenie ktore trzeba zawsze wykonac przed jakimkolwiek uzyciem Terraforma 
       - name: Terraform Init
         working-directory: terraform
         run: terraform init
 
       - name: Terraform Plan
+        # Zawsze robimy plan — nawet przy apply. Zobaczymy w logach co Terraform zamierza zrobić.
+        # Wynik (tfplan) jest używany przez następny krok apply.
         working-directory: terraform
         run: terraform plan -out=tfplan
 
+        # Uruchamia się TYLKO gdy wybralism "apply" przy uruchamianiu workflow.
+        # Wykonuje dokładnie to co pokazał plan. Trwa ~5 minut.
       - name: Terraform Apply
         if: github.event.inputs.action == 'apply'
         working-directory: terraform
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve tfplan # wykonuje plan i tworzy/modyfikuje infrastrukturę na Azure.
 
       - name: Terraform Destroy
+        # Uruchamia się TYLKO gdy wybralem "destroy" w UI GH. 
+        # Kasuje absolutnie wszystko —
+        # klaster, bazę danych, magazyn obrazów. Dane graczy przepadają!
         if: github.event.inputs.action == 'destroy'
         working-directory: terraform
         run: terraform destroy -auto-approve
 
+      # ── PO APPLY: POBIERZ DANE DOSTĘPOWE DO SERWERA ─────────────────────────
+      # Po stworzeniu klastra pobieramy "klucze" do niego (kubeconfig).
+      # Bez tego nie możemy wydawać poleceń serwerowi Kubernetes.
+      # Robimy to dopiero TUTAJ bo klaster istnieje dopiero po "apply" powyżej.
       - name: Pobierz kubeconfig AKS
         if: github.event.inputs.action == 'apply'
         run: |
@@ -92,6 +154,8 @@ jobs:
             --only-show-errors
 
       # ── APLIKUJ ARGOCD APPLICATION PO APPLY ─────────────────────────────────
+      # ArgoCD jest już zainstalowany przez Terraform.
+      # Ten krok mówi mu "obserwuj to repozytorium i wdrażaj aplikacje automatycznie".
       - name: Zaaplikuj ArgoCD Application
         if: github.event.inputs.action == 'apply'
         run: kubectl apply -f argocd/application.yaml

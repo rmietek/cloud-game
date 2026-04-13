@@ -22,7 +22,7 @@ spec:              #  konfiguracja zachowania
     apiVersion: apps/v1
     kind: Deployment # Cel to Deployment o nazwie mother (backend)
                      # Deployment to obiekt Kubernetes który opisuje jak uruchomić aplikację i ile jej kopii ma działać.
-    name: mother
+    name: mother     # Skaluj serwer o nazwie "mother" zdefiniowany w prz-mother.yaml
 
   #  Ile replik (kopii poda) ma działać:
   minReplicas: 1   # HPA nigdy nie usunie ostatniego Poda; zawsze będzie działać minimum jeden

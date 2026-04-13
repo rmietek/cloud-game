@@ -18,9 +18,9 @@ kind: Kustomization
 images:
 - name: przacr.azurecr.io/prz-child
   newName: przacr.azurecr.io/prz-child
-  newTag: f53f74c0
+  newTag: 4cf0f055
 - name: przacr.azurecr.io/prz-mother
   newName: przacr.azurecr.io/prz-mother
-  newTag: f53f74c0
+  newTag: 4cf0f055
 resources:
 - ../../base

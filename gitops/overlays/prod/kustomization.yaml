@@ -18,9 +18,9 @@ kind: Kustomization
 images:
 - name: przacr.azurecr.io/prz-child
   newName: przacr.azurecr.io/prz-child
-  newTag: 1e51f8b5    # ← ten numer zmienia bot (pierwsze 8 znaków SHA ostatniego commita)
+  newTag: e9dfde76
 - name: przacr.azurecr.io/prz-mother
   newName: przacr.azurecr.io/prz-mother
-  newTag: 1e51f8b5
-resources:          # ← oba serwisy zawsze mają ten sam numer (z tego samego commita)
-- ../../base # Dołącz całą bazową konfigurację (Redis, Mother, HPA, Agones)
+  newTag: e9dfde76
+resources:
+- ../../base

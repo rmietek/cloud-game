@@ -1,37 +1,106 @@
+# ─── CO ROBI TEN PLIK? ────────────────────────────────────────────────────────
+# Ten plik konfiguruje SERWERY GRY (Child) zarządzane przez Agones.
+#
+# Dlaczego Agones zamiast zwykłego Deployment dla Child?
+#
+# Agones to specjalne narzędzie do zarządzania serwerami gier — rozumie że:
+#   • Zwykły Deployment nie rozumie tego — mógłby ubić pod z trwającą grą.
+#   • Nie można wyłączyć serwera gdy trwa na nim gra (gracze by wylecieli)
+#   • Serwer gry ma konkretny cykl życia: "czeka" → "gra trwa" → "koniec gry"
+#   • Każdy serwer gry potrzebuje własnego portu (żeby gracze mogli się połączyć)
+#
+#
+#   Fleet (flota) = Flota (Fleet) w Agones to odpowiednik Deploymentu z Kubernetesa, 
+#   ale zoptymalizowany pod serwery gier (stanowe połączenia w czasie rzeczywistym).
+#   Fleet utrzymuje pulę obiektów GameServer. Jego jedyne zadanie to pilnować, żeby w klastrze 
+#   istniała określona liczba podów. Jeśli pod zginie (crash, zakończenie sesji) – Fleet tworzy nowy.
+#   Fleet działa jak Deployment. Ma jedno zadanie: "Mam mieć X podów. Sprawdzam. Mam Y. Tworzę X-Y podów."
+#   – pilnuje liczby replik i nic więcej.
+#   Sam Fleet ma jedno pole: replicas. Tyle. Nie decyduje kiedy zwiększyć, kiedy zmniejszyć.
+#   Podsumowując: Fleet utrzymuje N podów alive, wykonuje rozkazy co do liczby replik
+# 
+#
+#   GameServer    = pojedynczy serwer gry, sam raportuje swój stan
+#   Każdy GameServer raportuje swój stan przez Agones SDK:
+#       Ready      → serwer wolny, czeka na gracza
+#       Allocated  → serwer zajęty, trwa sesja gry, Fleet go nie usunie
+#       Shutdown   → sesja zakończona, pod umiera, Fleet go moze usunac
+#
+#
+#   FleetAutoscaler – manager, obserwuje stany, liczy ile replik powinno być, wydaje rozkazy Fleetowi
+#   FleetAutoscaler nie dotyka podów. On tylko zmienia jedno pole we Flecie: 
+#   Fleet.replicas = 3   →   Fleet.replicas = 4
+#   I to Fleet widzi zmianę i sam tworzy brakującego poda.
+#
+#
+#
+#
+#   Podsumowując: Fleet tworzy pody. FleetAutoscaler nie tworzy nic
+# 
+#
+# Jak gracz dołącza do gry:
+#   1. Gracz klika "Graj" w lobby (Mother)
+#   2. Mother publikuje wiadomość w Redis: "gracz X chce dołączyć do gry Y"
+#   3. Child (serwer gry Y) odczytuje wiadomość i wpuszcza gracza
+#   4. Gracz łączy się bezpośrednio z Child na przydzielonym porcie (7000-8000)
+# ─────────────────────────────────────────────────────────────────────────────
+
 # ─── AGONES FLEET ────────────────────────────────────────────────────────────
 apiVersion: "agones.dev/v1"
-kind: Fleet
+kind: Fleet # To jest zasób Agones, nie zwykły Kubernetes
 metadata:
   name: prz-child-fleet
 spec:
-  scheduling: Packed
-
+  scheduling: Packed  # Skupiaj pody na jednym węźle aż do jego zapełnienia (oszczędność zasobów)
   template:
     spec:
       ports:
       - name: default
-        containerPort: 5000
-        protocol: TCP
+        containerPort: 5000 # Port domyślny w child.js. Agones przydzieli port zewnętrzny
+        protocol: TCP       # z puli 7000-8000 i poda graczowi adres do połączenia.
       template:
         spec:
+          # 15 sekund na zamknięcie — child.js może poinformować graczy
+          # "serwer kończy pracę" zanim Kubernetes siłowo go wyłączy.
           terminationGracePeriodSeconds: 15
+
+          # Serwer gry po zakończeniu NIE restartuje się sam — Agones zarządza cyklem życia
+          # Agones tworzy nowy gdy jest potrzebny (obsługuje FleetAutoscaler poniżej).
           restartPolicy: Never
           containers:
           - name: child
             image: przacr.azurecr.io/prz-child:latest
+            # Uwaga: tag "latest" jest zastępowany konkretną wersją przez Kustomize
+            # (patrz overlays/prod/kustomization.yaml)
             env:
+            # Child nie łączy się bezpośrednio z Mother — komunikują się przez Redis.
+            # Dzięki temu możemy mieć wiele kopii Mother i wiele serwerów Child
+            # i wszystkie "rozmawiają" przez jeden wspólny Redis (magistrale komunikacji).
             - name: REDIS_URL
-              value: "redis://redis:6379"
+              value: "redis://redis:6379"  # Adres Redis wewnątrz klastra
             - name: MONGO_URL
               valueFrom:
                 secretKeyRef:
-                  name: cosmos-db-secret
-                  key: MONGO_URL
-            - name: USE_AGONES       
-              value: "true"
+                  name: cosmos-db-secret  # Hasło do bazy danych (ukryte w Kubernetes Secret)
+                  key: MONGO_URL          # Connection string do CosmosDB
+            - name: USE_AGONES            # Parametr przekazywany do child.js:
+              value: "true"               # Mówi child.js żeby korzystał z Agones (zarządzanie portem i statusem)
 
 ---
-# ─── AUTOSKALER AGONES ───────────────────────────────────────────────────────
+
+
+# ─── AUTOSKALER DO ZARZĄDZANIA SERWERAMI GRY ─────────────────────────────────
+# FleetAutoscaler pilnuje żeby zawsze był gotowy przynajmniej 1 wolny serwer gry.
+#
+# Jak to działa:
+#   • Gracz dołącza → serwer przechodzi ze "wolny" (ready) na "zajęty" (allocated)
+#   • FleetAutoscaler widzi że nie ma wolnych serwerów → tworzy nowy (zwieksza replicas)
+#   • Następny gracz dostaje ten nowy wolny serwer natychmiast (zero czekania)
+
+# Polityka Buffer:
+#   Zawsze utrzymuj "bufferSize" wolnych (Ready) serwerów.
+# Dzięki bufferowi = 1: nowy gracz ZAWSZE dostaje jeden gotowy serwer od razu.
+# ─────────────────────────────────────────────────────────────────────────────
 apiVersion: "autoscaling.agones.dev/v1"
 kind: FleetAutoscaler
 metadata:
@@ -44,3 +113,14 @@ spec:
       bufferSize: 1
       minReplicas: 1
       maxReplicas: 20
+
+# ───  TWORZENIE PODA? ────────────────────────────────────────────────────────
+#   FleetAutoscaler:
+#     widzi  → 0 wolnych GameServerów (buffer pusty)
+#     mówi   → "Fleet, zmień replicas z 5 na 6"
+#     sam NIE tworzy żadnego poda — tylko zmienia liczbę docelową
+#
+#   Fleet controller (część Agones):
+#     słyszy → "mam mieć 6, mam 5"
+#     robi   → tworzy 1 nowy pod z child.js
+# ─────────────────────────────────────────────────────────────────────────────

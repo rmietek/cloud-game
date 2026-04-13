@@ -1,23 +1,47 @@
+
+# ─── ARGOCD APPLICATION ────────────────────────────────────────────────────────
+# Ten plik definiuje "Application" — główny obiekt ArgoCD mówiący:
+#   "obserwuj to miejsce w Git i utrzymuj klaster w zgodzie z nim".
+#
+# Automatycznie wdraża aplikacje  na serwer za każdym razem gdy zmieni się kod 
+# w repozytorium Git.
+
+# Działa to według zasady:
+#   1. GitHub Actions builduje obrazy Docker i aktualizuje tagi w gitops/overlays/prod/
+#   2. ArgoCD widzi commit w repo (polluje co ~3 minuty lub przez webhook)
+#   3. ArgoCD porównuje stan repo z klastrem i aplikuje różnicę
+#   4. Gracze dostają nową wersję serwerow bez żadnej ręcznej interwencji
+#
+# Aby zaaplikować ten plik do klastra:
+#   kubectl apply -f argocd/application.yaml
+# (wykonywane automatycznie przez GitHub Actions w ci.yml i terraform.yml)
+# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prz-app
-  namespace: argocd
+  name: prz-app       # Nazwa naszej aplikacji w panelu ArgoCD
+  namespace: argocd   # ArgoCD zawsze instaluje swoje zasoby w namespace "argocd"
+
+# To zabezpieczenie: jeśli skasujemy tę aplikację z ArgoCD,
+# ArgoCD najpierw sprząta po sobie (usuwa serwery gry, Redis itp.).
+# Bez tego zasoby w klastrze (Pods, Services itp.) zostałyby porzucone —
+# nadal działały, ale nikt by nimi nie zarządzał ani ich nie usunął.
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/rmietek/cloud-game.git
-    targetRevision: master
-    path: gitops/overlays/prod
+    repoURL: https://github.com/rmietek/cloud-game.git # Adres tego repozytorium
+    targetRevision: master      # Obserwuj gałąź "master"
+    path: gitops/overlays/prod  # Katalog z Kustomize overlay dla środowiska prod
   destination:
-    server: https://kubernetes.default.svc
-    namespace: default
+    server: https://kubernetes.default.svc  # Klaster lokalny (ten sam gdzie działa ArgoCD)
+    namespace: default                      # Namespace gdzie deployowane są mother/redis
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
+      prune: true       # Jeśli usunęliśmy coś z repo — usuń też z serwera
+      selfHeal: true    # Jeśli ktoś ręcznie zmienił coś na serwerze — przywróć do stanu z repo
     syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
+      - CreateNamespace=true   # Utwórz namespace jeśli nie istnieje (bezpieczne)
+      - ServerSideApply=true   # Bezpieczniejszy sposób aplikowania zmian (zalecany przez K8s)

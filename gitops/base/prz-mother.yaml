@@ -1,22 +1,47 @@
-# ─── SERWER MATKI ─────────────────────────────────────────────────────────────
+# ─── MOTHER — SERWER CENTRALNY - LOBBY I LOGOWANIA ───────────────────────────
 # Bezstanowy — można skalować do wielu replik dowolnie.
+# Mother to "wejście" do gry dla graczy. Obsługuje:
+#   • Stronę główną gry (index.html) — przeglądarka gracza ją pobiera
+#   • Rejestrację i logowanie (API na porcie 80 jest przekierowanie na wewn. 9876)
+#   • Listę aktywnych serwerów gry w czasie rzeczywistym (WebSocket na porcie 3001)
+#   • Dołączanie do gry — przekazuje gracza do odpowiedniego serwera Child
+#
+# "Bezstanowy" oznacza że Mother nie pamięta sesji w swojej pamięci.
+# Wszystkie dane są w Redis (stan gier) lub CosmosDB (dane gracza).
+# Dzięki temu można uruchomić wiele kopii Mother jednocześnie bez problemów —
+# każda kopia obsługuje inną część graczy ale widzi te same dane.
+#
+#
+# Mother to bezstanowy serwer lobby i autoryzacji. Obsługuje:
+#   - HTTP REST (port 9876): rejestracja, logowanie, serwowanie strony gry (index.html)
+#   - WebSocket (port 3001): lista serwerów w czasie rzeczywistym, dołączanie do gry
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: v1
 kind: Service
+#   Service  — router sieciowy. Przyjmuje ruch z zewnątrz i przekazuje go do kontenera.
+#              port 80 (zewnętrzny) → targetPort 9876 (kontener)
+#              To tutaj działa przekierowanie portów.
 metadata:
   name: mother
 spec:
-  type: LoadBalancer
+  type: LoadBalancer # Zewnętrzny IP od Azure Load Balancer — gracze łączą się z zewnątrz
   selector:
     app: mother
   ports:
     - name: http
-      port: 80           
-      targetPort: 9876    
+      port: 80          # Port zewnętrzny — gracz wpisuje http://<IP> bez podawania portu (80 to domyślny HTTP)
+      targetPort: 9876  # Port wewnętrzny kontenera — tam faktycznie nasłuchuje serwer Node.js 
+                        # (Express HTTP -> REST API: logowanie, rejestracja, serwowanie index.html)
     - name: client-ws
-      port: 3001
+      port: 3001        # uWebSockets.js WebSocket: lobby real-time, dołączanie do gry
 ---
 apiVersion: apps/v1
 kind: Deployment
+#   Deployment — opis kontenera. Mówi Kubernetesowi jak uruchomić aplikację.
+#              containerPort to tylko dokumentacja — informacja że kontener
+#              nasłuchuje na tych portach.  
 metadata:
   name: mother
 spec:
@@ -31,21 +56,30 @@ spec:
       containers:
       - name: mother
         image: przacr.azurecr.io/prz-mother:latest
+        # Tag "latest" jest nadpisywany przez Kustomize overlay (overlays/prod/kustomization.yaml)
+        # do konkretnego SHA commita — "latest" w bazie to placeholder.
         env:
         - name: MONGO_URL
           valueFrom:
             secretKeyRef:
-              name: cosmos-db-secret
-              key: MONGO_URL
+              name: cosmos-db-secret   # Secret tworzony przez Terraform (kubernetes.tf)
+              key: MONGO_URL           # Connection string do CosmosDB z MongoDB API
         - name: REDIS_URL
-          value: "redis://redis:6379"
+          value: "redis://redis:6379"  # Adres Redis Service wewnątrz klastra
         ports:
-        - containerPort: 9876
-        - containerPort: 3001
+        - containerPort: 9876   # Express HTTP
+        - containerPort: 3001   # uWS WebSocket
         resources:
           requests:
-            cpu: "100m"
-            memory: "128Mi"
+            # "Requests" to minimalne zasoby gwarantowane dla tego serwera.
+            # Kubernetes używa tych wartości do decyzji gdzie postawić serwer na klastrze.
+            # HPA (mother-hpa.yaml) liczy obciążenie jako % tych wartości.
+            cpu: "100m"      # 100m = 0.1 rdzenia procesora (10% jednego rdzenia)
+            memory: "128Mi"  # 128 megabajtów RAM
           limits:
-            cpu: "500m"
-            memory: "256Mi"
+            # "Limits" to maksimum — serwer nie może przekroczyć tych wartości.
+            # Chroni inne serwery przed tym że jeden "zjada" wszystkie zasoby.
+            cpu: "500m"      # Maksymalnie 50% jednego rdzenia
+            memory: "256Mi"  # Maksymalnie 256 megabajtów RAM
+
+ 

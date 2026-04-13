@@ -21,7 +21,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - prz-redis.yaml
-  - prz-mother.yaml
-  - mother-hpa.yaml
-  - prz-agones.yaml
+  - prz-redis.yaml  # Redis (magistrala komunikacji między serwerami)
+  - prz-mother.yaml # Mother (lobby/auth serwer)
+  - mother-hpa.yaml # Autoskalowanie Mother na podstawie CPU
+  - prz-agones.yaml # Serwery gry Child zarządzane przez Agones

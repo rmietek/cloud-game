@@ -1,3 +1,22 @@
+# ─── CO ROBI TEN PLIK? ────────────────────────────────────────────────────────
+# Ten plik to manifest Kustomize — lista plików które Kustomize łączy w jeden
+# duży YAML. Sam Kustomize nic nie wysyła — robi to ArgoCD, który wywołuje
+# `kustomize build` i aplikuje wynik do klastra Kubernetes.
+#
+# Lista plików które razem tworzą wspólną konfigurację aplikacji.
+#
+# Wzorzec base/overlays:
+#   * Ten folder (base/) zawiera WSPÓLNĄ konfigurację dla wszystkich środowisk
+#   * Folder overlays/prod/ dodaje do tego "nakładkę" z konkretnymi wersjami obrazów
+#
+#
+# Co zawiera baza:
+#   prz-redis.yaml         — Redis  
+#   prz-mother.yaml        — Serwer centralny
+#   mother-hpa.yaml        — HorizontalPodAutoscaler dla Mother
+#   prz-agones.yaml        — Fleet + FleetAutoscaler dla serwerów gry (Child)
+# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

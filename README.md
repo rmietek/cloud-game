@@ -6,19 +6,17 @@
 cloud-game/
 ├── apps/
 │   ├── mother-lobby/              # Serwer lobby (logowanie, lista gier)
-│   │   ├── src/
-│   │   │   └── main.js
 │   │   ├── public/                # Pliki statyczne serwowane graczom
 │   │   │   ├── index.html
 │   │   │   ├── ads.txt
 │   │   │   ├── img/
 │   │   │   ├── js/
 │   │   │   └── obj/
+│   │   ├── main.js
 │   │   └── package.json
 │   │
 │   ├── child-gameserver/          # Serwer gry (właściwa rozgrywka, Agones)
-│   │   ├── src/
-│   │   │   └── main.js
+│   │   ├── main.js
 │   │   └── package.json
 │   │
 │   └── shared/                    # Współdzielony kod między serwerami

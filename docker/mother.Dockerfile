@@ -6,7 +6,7 @@ RUN npm install
 RUN npm install @google-cloud/agones-sdk
 RUN npm install redis
 COPY apps/shared/ shared/
-COPY apps/mother-lobby/src/ src/
+COPY apps/mother-lobby/main.js .
 COPY apps/mother-lobby/public/ public/
 EXPOSE 9876 3001 3002
-CMD ["node", "src/main.js"]
+CMD ["node", "main.js"]

@@ -423,7 +423,7 @@ const { MongoClient, ObjectId } = require('mongodb');
  */
 
 
-const bin        = require('../../shared/binary.js');
+const bin        = require('../shared/binary.js');
 const packet_get = bin.packet_get;
 const packet_set = bin.packet_set;
 // Własny moduł do kodowania/dekodowania pakietów binarnych.

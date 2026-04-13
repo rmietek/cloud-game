@@ -1,7 +1,7 @@
 'use strict';
 
 const path     = require('path');
-const PUBLIC   = path.join(__dirname, '../public');
+const PUBLIC   = path.join(__dirname, 'public');
 
 const uWS      = require('uWebSockets.js');
 /*
@@ -120,7 +120,7 @@ const { MongoClient, ObjectId } = mongodb;
 
 
 
-const { packet_get, packet_set } = require('../../shared/binary.js');
+const { packet_get, packet_set } = require('../shared/binary.js');
 /*
  * Własny moduł binarnego protokołu komunikacji z klientami gry.
  *

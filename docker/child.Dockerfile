@@ -6,6 +6,6 @@ RUN npm install
 RUN npm install @google-cloud/agones-sdk
 RUN npm install redis
 COPY apps/shared/ shared/
-COPY apps/child-gameserver/src/ src/
+COPY apps/child-gameserver/main.js .
 EXPOSE 5000
-CMD ["node", "src/main.js"]
+CMD ["node", "main.js"]

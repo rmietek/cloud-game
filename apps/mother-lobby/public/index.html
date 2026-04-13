@@ -894,7 +894,7 @@
       <!-- Karuzela skinów: ‹ [obrazek] › -->
       <div class="skin-row">
         <div class="sk-btn left">&#8249;</div>   <!-- ‹ (U+2039 Single Left Angle Quotation) -->
-        <img src="/img/is/1.png" id="skins" draggable="false"/>
+        <img src="/img/skins/1.png" id="skins" draggable="false"/>
         <div class="sk-btn right">&#8250;</div>  <!-- › (U+203A Single Right Angle Quotation) -->
       </div>
       <div id="skins_price"></div><!-- Cena skina — pusta gdy posiadany, "Buy X" gdy nie -->
@@ -1349,7 +1349,7 @@
     // Model postaci gracza dla skina i (plik .obj)
     textureLoader.load(`obj/${i}.png`);
     // Tekstura dla skina i (plik .png — mapowana na model w loadPlayerModel())
-    imageLoader.load(`/img/is/${i}.png`);
+    imageLoader.load(`/img/skins/${i}.png`);
     // Miniaturka skina dla lobby (karuzela skinów — #skins img)
   }
 
@@ -1853,7 +1853,7 @@
    * @param {number} id - ID skina (0–22)
    */
   function loadSkinImage(id) {
-    $('#skins').src = '/img/is/' + id + '.png';
+    $('#skins').src = '/img/skins/' + id + '.png';
     // Zmień źródło obrazka na skin o podanym ID.
 
     const owned = (accountSkins && accountSkins.indexOf(id) !== -1) || (skins && !skins[id]);

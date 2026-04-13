@@ -1,43 +1,99 @@
+# ─── CI/CD PIPELINE ──────────────────────────────────────────────────────────
+# Ten plik definiuje automatyczny pipeline uruchamiany automatycznie
+# za każdym razem gdy wgramy (push) kod na gałąź "master".
+#
+# Plik ten wykonuje 3 kroki po kolei:
+#
+#   1. build-and-push
+#      Buduje obrazy Docker dla prz-mother i prz-child,
+#      opatruje je tagiem (pierwsze 8 znaków SHA commita),
+#      i pushuje do Azure Container Registry (przacr.azurecr.io):
+#       • prz-mother  — serwer lobby (lista gier, logowanie)
+#       • prz-child   — serwer gry (właściwa rozgrywka)
+#
+#   2. update-gitops
+#      Aktualizuje kustomization.yaml w gitops/overlays/prod/ —
+#      zmienia tagi obrazów na nowy SHA.
+#      Dzięki temu ArgoCD "widzi" zmianę w repo i wdraża nową wersję na serwer. 
+#
+#   3. apply-argocd
+#     Aplikuje plik argocd/application.yaml do klastra AKS.
+#     Wysyła do serwera instrukcję "obserwuj to repozytorium i wdrażaj zmiany".
+#     Potrzebne tylko raz (przy pierwszym uruchomieniu), ale bezpieczne przy każdym pushu.
+#
+# DO USTAWIONIA w GitHub → Settings → Secrets
+# ─────────────────────────────────────────────────────────────────────────────
+ 
+
+
 name: CI/CD — Build, Push & Deploy
 
-on:
-  push:
-    branches: [master]
-  pull_request:
+on:                     # Definiuje co wyzwala workflow
+  push:                 # Pipeline startuje przy każdym pushu do mastera
+    branches: [master]  # kiedy ktoś wypchnie kod na główną gałąź, workflow odpala się w całości: 
+                        # buduje obrazy, aktualizuje tagi, wdraża
+  pull_request:         # if'y tego nie obsługują na te chwile
     branches: [master]
 
+
+# Uprawnienia - bot musi móc zapisać zaktualizowany plik wersji do repo
+# Bo w kroku 2 będzie musiał zmodyfikować plik `kustomization.yaml` i 
+# zrobić `git push` z powrotem do repozytorium.
 permissions:
-  contents: write
+  contents: write 
 
+# Zmienne zdefiniowane na poziomie całego workflow — dostępne we wszystkich jobach
 env:
-  ACR_NAME: przacr
-  ACR_URL: przacr.azurecr.io
+  ACR_NAME: przacr           # Nazwa rejestru kontenerów Azure (Azure Container Registry) [bez .azurecr.io] 
+  ACR_URL: przacr.azurecr.io # pełny adres rejestru który wchodzi w skład nazwy obrazu Docker
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  KROK 1:
+# ─────────────────────────────────────────────────────────────────────────────
+## JOB 1 — `build-and-push`
 jobs:
   build-and-push:
-    name: Build & Push Docker images
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    name: Build & Push Docker images  # Nazwa kroku
+    runs-on: ubuntu-latest            # Każdy krok dostaje oddzielną, czystą maszynę
+    if: github.event_name == 'push'   # gdy push:
     outputs:
-      image_tag: ${{ steps.meta.outputs.tag }}
+      image_tag: ${{ steps.meta.outputs.tag }}  # hash commita pobieramy
 
     steps:
+      # Maszyna wirtualna startuje pusta — nie ma na niej Twojego kodu. 
+      # Ten krok pobiera repozytorium na maszynę. `actions/checkout`.
       - name: Checkout kodu
         uses: actions/checkout@v6.0.2
 
       - name: Azure Login
         uses: azure/login@v3.0.0
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}   # Loguje się do Azure używając danych z GitHub Secrets. 
+                                                    # AZURE_CREDENTIALS` to JSON z danymi do logowania
 
+      # Azure Container Registry prywatny rejestr obrazów — 
+      # żeby móc tam pushować, musimy się uwierzytelnić. 
+      # `az acr login` konfiguruje Dockera na maszynie wirtualnej 
+      # tak żeby mógł pushować do `przacr.azurecr.io`.
       - name: Login do ACR
         run: az acr login --name ${{ env.ACR_NAME }}
 
+
       - name: Ustal tag obrazu (short SHA)
         id: meta
+        # Zmienna środowiskowa GITHUB_SHA zawiera pełny hash commita za kazdym razem
+        # >> $GITHUB_OUTPUT - zapisuje wynik do specjalneog pliku który jest dostępny 
+        # w następnym kroku ${{ steps.meta.outputs.tag }}
         run: echo "tag=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
+
+
+      # Wskazuje który plik Dockerfile użyć. Mamy dwa oddzielne Dockerfile dla mother i child.
+      # Buduje obraz Docker z pliku `Dockerfile.mother` i taguje go DWOMA tagami: 
+      # konkretną wersją (SHA) i `latest`.  
       - name: Build i push — prz-mother
+
         run: |
           docker build -f Dockerfile.mother \
             -t ${{ env.ACR_URL }}/prz-mother:${{ steps.meta.outputs.tag }} \
@@ -45,7 +101,12 @@ jobs:
             .
           docker push ${{ env.ACR_URL }}/prz-mother:${{ steps.meta.outputs.tag }}
           docker push ${{ env.ACR_URL }}/prz-mother:latest
+         # `docker push` — wysyła zbudowany obraz do ACR. Pushowane są oba tagi. Dzięki temu:
+         # - ktoś kto chce konkretną wersję używa tagu z hashem
+         # - ktoś kto zawsze chce najnowszą używa `latest`
+         # - ArgoCD przez Kustomize używa konkretnego hasha — nigdy `latest` na produkcji
 
+      # To samo dzieje się dla `prz-child` w następnym kroku:
       - name: Build i push — prz-child
         run: |
           docker build -f Dockerfile.child \
@@ -55,6 +116,17 @@ jobs:
           docker push ${{ env.ACR_URL }}/prz-child:${{ steps.meta.outputs.tag }}
           docker push ${{ env.ACR_URL }}/prz-child:latest
 
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  KROK 2: AKTUALIZACJA TAGU ZA POMOCĄ KUSTOMIZE
+# ─────────────────────────────────────────────────────────────────────────────
+# Drugi krok aktualizuje `gitops/overlays/prod/kustomization.yaml` 
+# wstawiając nowy tag SHA. Narzędzie `kustomize edit set image` 
+# modyfikuje plik bezpośrednio. Pipeline commituje zmianę z powrotem 
+# do repo z komunikatem `[skip ci]` — to flaga żeby pipeline nie 
+# uruchomił się ponownie od własnego commita.
   update-gitops:
     name: Update image tags (Kustomize)
     runs-on: ubuntu-latest
@@ -89,9 +161,22 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add gitops/overlays/prod/kustomization.yaml
-          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ needs.build-and-push.outputs.image_tag }} [skip ci]"
-          git push
 
+          # commituj tylko jesli sa zmiany (jesli ten sam SHA, plik sie nie zmienił, nie ma commita). 
+          # `[skip ci]` — zapobiega petli. Bot commit z `github-actions[bot]` email.
+          git diff --staged --quiet || git commit -m "chore: update image tags to ${{ needs.build-and-push.outputs.image_tag }} [skip ci]"
+          
+          git push  # zapisuje zmianę z powrotem do repozytorium.
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  KROK 3:  REJESTRACJA APLIKACJI W ARGOC
+# ─────────────────────────────────────────────────────────────────────────────
+  # ArgoCD to program na serwerze który obserwuje repozytorium i automatycznie
+  # wdraża zmiany. Ten krok "rejestruje" nasze aplikacje w ArgoCD.
+  # Po tym kroku  ArgoCD wykryje nowy commit z zaktualizowanym tagiem i 
+  # automatycznie wdroży nową wersję do klastra. 
+  # kod → obraz → tag w repo → ArgoCD → klaster.
   apply-argocd:
     name: Apply ArgoCD Application
     runs-on: ubuntu-latest
@@ -114,5 +199,7 @@ jobs:
             --name PRZAKSCluster \
             --overwrite-existing
 
+      # Po commicie kustomization, jawnie aplikuje `application.yaml`. 
+      # ArgoCD ma polling co 3 minuty — jawny apply zapewnia natychmiastowa synchronizacje bez czeckania.
       - name: Apply ArgoCD Application
         run: kubectl apply -f argocd/application.yaml

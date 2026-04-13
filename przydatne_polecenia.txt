@@ -14,6 +14,10 @@ az group delete --name PRZ --yes --no-wait && az group delete --name PRZ-tfstate
 
 
 
+adres ip: load balancera  kubectl get svc mother
+# Nowe repliki pojawią się gdy CPU przekroczy próg ustawiony w mother-hpa.yaml. Sprawdzam obciazenie (prog 10 proc):
+kubectl get hpa -w
+ab -n 1000 -c 50 http://134.112.0.61/
 
 ------
 Inne:

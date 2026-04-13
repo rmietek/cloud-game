@@ -18,6 +18,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
 
 apiVersion: argoproj.io/v1alpha1
+
+# Tworzymy zasób typu `Application` w Argo CD. To nie jest wbudowany obiekt Kubernetesa jak `Deployment` czy `Service`,
+# tylko CRD (Custom Resource Definition) — własny typ zasobu dodany przez ArgoCD do klastra.
 kind: Application
 metadata:
   name: prz-app       # Nazwa naszej aplikacji w panelu ArgoCD

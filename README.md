@@ -1,3 +1,253 @@
+# 📖 Słownik komend i struktur Redis używanych w projekcie
+
+Redis to **baza danych działająca w pamięci RAM** — operacje są błyskawiczne, ale dane znikają po restarcie. Poniżej każda komenda z rzeczywistym wywołaniem z kodu.
+
+---
+
+## Typy struktur danych
+
+### `HASH` — mapa pól wewnątrz jednego klucza
+Odpowiednik obiektu JS. Pod jednym kluczem trzymasz wiele nazwanych pól.
+```
+game:3847291650  →  {
+    g_port:        "7777"
+    g_players_len: "3"
+    g_players_lim: "16"
+    serv_ip:       "192.168.1.1"
+    serv_loc:      "PL"
+    serv_name:     "EU-1"
+}
+```
+
+### `SET` — zbiór unikalnych wartości (jak `Set` w JS)
+Nieuporządkowany zbiór stringów — bez duplikatów, bez kolejności.
+```
+game_ids  →  { "3847291650", "1029384756", "9182736450" }
+```
+
+### `STRING` — zwykła wartość klucz→wartość
+```
+token:2947183650  →  "1"
+```
+
+---
+
+## Komendy na strukturze `HASH`
+
+### `hSet(klucz, obiekt)` — tworzy lub nadpisuje pola w HASH
+
+**Co robi:** Jeśli HASH nie istnieje — tworzy go. Jeśli istnieje — nadpisuje podane pola, reszta zostaje bez zmian.
+
+**Gdzie w kodzie:** `child.js` — funkcja `redis_connect()`, rejestracja nowego serwera przy starcie
+```javascript
+// child.js
+await redis_pub.hSet(`game:${game_id}`, {
+    g_port:        AGONES_PORT.toString(),  // port do połączenia WebSocket
+    g_players_len: "0",                     // aktualnie 0 graczy (właśnie startujemy)
+    g_players_lim: MAX_PLAYERS.toString(),  // limit graczy — lobby nie przekroczy tego
+    serv_ip:       AGONES_IP,
+    serv_loc:      COUNTRY,
+    serv_name:     SERVER_NAME,
+});
+```
+
+---
+
+### `hSet(klucz, pole, wartość)` — aktualizuje jedno pole w HASH
+
+**Co robi:** Ta sama komenda `hSet`, ale zamiast obiektu przekazujesz jedno pole — przydatne gdy aktualizujesz tylko jeden parametr.
+
+**Gdzie w kodzie:** `child.js` — funkcja `redis_update_player_count()`, wywoływana co 60 ticków gry
+```javascript
+// child.js
+redis_pub.hSet(`game:${game_id}`, 'g_players_len', player_length.toString())
+    .then(() => redis_pub.expire(`game:${game_id}`, 5))  // odnów TTL przy okazji
+    .then(() => redis_pub.publish('lobby_update', '1'))   // powiadom lobby o zmianie
+    .catch(console.error);
+```
+
+---
+
+### `hGetAll(klucz)` — odczytuje cały HASH jako obiekt JS
+
+**Co robi:** Zwraca **wszystkie pola naraz** jako zwykły obiekt `{ pole: wartość, ... }`. Jeśli klucz nie istnieje — zwraca `{}` (pusty obiekt, nie `null`).
+
+**Gdzie w kodzie — przykład 1:** `mother.js` — funkcja `buildGamesPacket()`, budowanie listy gier do wysłania klientom
+```javascript
+// mother.js
+const ids = await redis.sMembers('game_ids');  // najpierw pobierz wszystkie ID
+for (const id of ids) {
+    const g = await redis.hGetAll(`game:${id}`);
+    // g = { g_port: "30542", g_players_len: "5", g_players_lim: "16", serv_ip: "...", ... }
+    games.push(g);
+}
+```
+
+**Gdzie w kodzie — przykład 2:** `mother.js` — obsługa żądania dołączenia gracza, weryfikacja czy serwer nie jest pełny
+```javascript
+// mother.js
+const gameData = await redis.hGetAll(`game:${gameId}`);
+// Sprawdzamy TERAZ (nie ufamy danym sprzed chwili) bo serwer mógł się zamknąć.
+// gameData.g_players_len  — aktualna liczba graczy
+// gameData.g_players_lim  — limit graczy
+```
+
+---
+
+## Komendy na strukturze `SET`
+
+### `sAdd(klucz, wartość)` — dodaje element do zbioru
+
+**Co robi:** Dopisuje element do Setu. Jeśli już istnieje — nic się nie dzieje (no-op). Zbiór sam pilnuje unikalności.
+
+**Gdzie w kodzie:** `child.js` — funkcja `redis_connect()`, tuż po zapisaniu HASH serwera
+```javascript
+// child.js
+await redis_pub.sAdd('game_ids', game_id.toString());
+// Dodaj ID gry do globalnego Setu z aktywnymi grami.
+// Lobby iteruje ten Set żeby znaleźć dostępne serwery.
+```
+
+---
+
+### `sMembers(klucz)` — zwraca wszystkie elementy zbioru jako tablicę
+
+**Co robi:** Zwraca tablicę wszystkich elementów. Kolejność jest **losowa** — nie zakładaj żadnego sortowania.
+
+**Gdzie w kodzie:** `mother.js` — funkcja `buildGamesPacket()`, punkt startowy budowania listy serwerów
+```javascript
+// mother.js
+const ids = await redis.sMembers('game_ids');
+// ids = ["3847291650", "1029384756", "9182736450"]  ← kolejność losowa
+// Następnie dla każdego id: hGetAll(`game:${id}`)
+```
+
+---
+
+### `sRem(klucz, wartość)` — usuwa element ze zbioru
+
+**Co robi:** Usuwa jeden element z Setu. Jeśli elementu nie ma — nic się nie dzieje.
+
+**Gdzie w kodzie:** `child.js` — funkcja `redis_cleanup()`, wywoływana przy zamykaniu serwera (SIGTERM)
+```javascript
+// child.js
+await redis_pub.sRem('game_ids', game_id.toString());
+// Bez tego lobby dalej iterowałoby przez stary ID i próbowało pobrać
+// dane serwera który już nie istnieje → hGetAll zwróciłoby {}
+```
+
+---
+
+## Komendy ogólne
+
+### `del(klucz)` — usuwa klucz (dowolnego typu)
+
+**Co robi:** Usuwa cały HASH, SET lub STRING pod danym kluczem natychmiast — nie czeka na TTL.
+
+**Gdzie w kodzie:** `child.js` — funkcja `redis_cleanup()`, czyszczenie danych serwera przy wyłączaniu
+```javascript
+// child.js
+await redis_pub.del(`game:${game_id}`);
+// DEL — usuwa hash "game:<id>" natychmiast.
+// Lobby natychmiast przestaje widzieć ten serwer.
+```
+
+---
+
+### `expire(klucz, sekundy)` — ustawia TTL (czas życia klucza)
+
+**Co robi:** Po upływie podanej liczby sekund Redis **automatycznie usuwa** klucz. Mechanizm "dead man's switch" — jeśli serwer crashnie bez SIGTERM, klucz sam zniknie.
+
+**Gdzie w kodzie:** `child.js` — dwa miejsca: przy rejestracji serwera i przy każdym heartbeat'cie
+```javascript
+// child.js — przy rejestracji (redis_connect)
+await redis_pub.expire(`game:${game_id}`, 5);
+// Klucz wygasa po 5 sekundach jeśli nikt go nie odnowi.
+
+// child.js — przy heartbeat (redis_update_player_count, co ~1 sekundę)
+redis_pub.hSet(`game:${game_id}`, 'g_players_len', player_length.toString())
+    .then(() => redis_pub.expire(`game:${game_id}`, 5)); // <-- odnów TTL
+// Jeśli serwer crashnie, klucz wygaśnie sam po max 5 sekundach.
+```
+
+---
+
+### `exists(klucz)` — sprawdza czy klucz istnieje
+
+**Co robi:** Zwraca `1` jeśli klucz istnieje, `0` jeśli nie ma go lub wygasł TTL.
+
+**Gdzie w kodzie:** `mother.js` — weryfikacja czy serwer gry nadal działa przed przekierowaniem gracza
+```javascript
+// mother.js
+redis.exists(`game:${gameId}`).then(function (exists) {
+    // exists = 1 (serwer działa) lub 0 (serwer padł / TTL wygasł)
+    // Sprawdzamy TUTAJ bo między wyborem gry a kliknięciem serwer mógł zniknąć
+});
+```
+
+---
+
+## Pub/Sub — komendy do komunikacji między procesami
+
+### `publish(kanał, wiadomość)` — wysyła wiadomość na kanał
+
+**Co robi:** Wiadomość dostają **wszyscy aktualnie nasłuchujący** subskrybenci. Jeśli nikt nie słucha — wiadomość przepada (brak kolejkowania, fire-and-forget).
+
+**Gdzie w kodzie — child.js** wysyła sygnał `'1'` przy każdej zmianie stanu:
+```javascript
+// child.js — przy rejestracji, przy zmianie liczby graczy, przy zamknięciu
+await redis_pub.publish('lobby_update', '1');
+// '1' to dowolna wartość — sam fakt otrzymania sygnału wystarczy.
+// mother.js po odebraniu sam odpytuje Redis o aktualny stan.
+```
+
+**Gdzie w kodzie — mother.js** wysyła dane gracza do konkretnego serwera:
+```javascript
+// mother.js — gracz klika "Dołącz"
+await redis.publish(`join:${gameId}`, JSON.stringify({
+    token,
+    name,
+    skin_id: skinId,
+    account: accountId ? accountId.toString() : '',
+}));
+// Kanał join:<gameId> — każdy child.js subskrybuje TYLKO swój kanał.
+```
+
+---
+
+### `subscribe(kanał, callback)` — nasłuchuje na kanale
+
+**Co robi:** Klient przechodzi w tryb nasłuchiwania. **Uwaga:** klient w tym trybie nie może wykonywać żadnych innych komend Redis (np. `hGetAll`, `sMembers`). Dlatego w każdym pliku są **dwa osobne klienty** — jeden do operacji na danych, drugi wyłącznie do `subscribe`.
+
+**Gdzie w kodzie — child.js** nasłuchuje na tokeny dołączenia:
+```javascript
+// child.js — redis_sub to klient WYŁĄCZNIE do nasłuchiwania
+await redis_sub.subscribe(`join:${game_id}`, (message) => {
+    // message = '{"token":2947183650,"name":"PlayerXYZ","skin_id":3,"account":"..."}'
+    const { token, name, skin_id, account } = JSON.parse(message);
+    tokens[token] = { name, skin_id, account };  // dodaj token do mapy
+});
+```
+
+**Gdzie w kodzie — mother.js** nasłuchuje na zmiany listy serwerów:
+```javascript
+// mother.js — redisSub to klient WYŁĄCZNIE do nasłuchiwania
+// (kod w connectRedis())
+// redisSub.subscribe('lobby_update', () => { odśwież listę gier dla klientów })
+```
+
+---
+
+## Podsumowanie — co gdzie trzymamy w Redis
+
+| Klucz | Typ | Zawartość | Kto zapisuje | Kto czyta |
+|-------|-----|-----------|--------------|-----------|
+| `game_ids` | SET | ID wszystkich aktywnych gier | `child.js` — `sAdd` przy starcie, `sRem` przy zamknięciu | `mother.js` — `sMembers` w `buildGamesPacket()` |
+| `game:{id}` | HASH | Port, IP, liczba graczy, nazwa, kraj | `child.js` — `hSet` (cały obiekt przy starcie, jedno pole przy heartbeat) | `mother.js` — `hGetAll` w `buildGamesPacket()` i przy dołączaniu gracza |
+| `token:{token}` | STRING (planowane) | znacznik że token jest ważny | `mother.js` | `child.js` |
+
+---
+
 # 🔴 Redis Pub/Sub — jak zintegrowaliśmy `child.js` z `mother.js`
 
 ---

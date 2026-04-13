@@ -116,20 +116,20 @@ jobs:
 
       # Pierwsze polecenie ktore trzeba zawsze wykonac przed jakimkolwiek uzyciem Terraforma 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform init
 
       - name: Terraform Plan
         # Zawsze robimy plan — nawet przy apply. Zobaczymy w logach co Terraform zamierza zrobić.
         # Wynik (tfplan) jest używany przez następny krok apply.
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform plan -out=tfplan
 
         # Uruchamia się TYLKO gdy wybralism "apply" przy uruchamianiu workflow.
         # Wykonuje dokładnie to co pokazał plan. Trwa ~5 minut.
       - name: Terraform Apply
         if: github.event.inputs.action == 'apply'
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform apply -auto-approve tfplan # wykonuje plan i tworzy/modyfikuje infrastrukturę na Azure.
 
       - name: Terraform Destroy
@@ -137,7 +137,7 @@ jobs:
         # Kasuje absolutnie wszystko —
         # klaster, bazę danych, magazyn obrazów. Dane graczy przepadają!
         if: github.event.inputs.action == 'destroy'
-        working-directory: terraform
+        working-directory: infra/terraform
         run: terraform destroy -auto-approve
 
       # ── PO APPLY: POBIERZ DANE DOSTĘPOWE DO SERWERA ─────────────────────────
@@ -158,4 +158,4 @@ jobs:
       # Ten krok mówi mu "obserwuj to repozytorium i wdrażaj aplikacje automatycznie".
       - name: Zaaplikuj ArgoCD Application
         if: github.event.inputs.action == 'apply'
-        run: kubectl apply -f argocd/application.yaml
+        run: kubectl apply -f gitops/argocd/application.yaml

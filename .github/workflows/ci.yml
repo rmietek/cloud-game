@@ -95,7 +95,7 @@ jobs:
       - name: Build i push — prz-mother
 
         run: |
-          docker build -f Dockerfile.mother \
+          docker build -f docker/mother.Dockerfile \
             -t ${{ env.ACR_URL }}/prz-mother:${{ steps.meta.outputs.tag }} \
             -t ${{ env.ACR_URL }}/prz-mother:latest \
             .
@@ -109,7 +109,7 @@ jobs:
       # To samo dzieje się dla `prz-child` w następnym kroku:
       - name: Build i push — prz-child
         run: |
-          docker build -f Dockerfile.child \
+          docker build -f docker/child.Dockerfile \
             -t ${{ env.ACR_URL }}/prz-child:${{ steps.meta.outputs.tag }} \
             -t ${{ env.ACR_URL }}/prz-child:latest \
             .
@@ -202,4 +202,4 @@ jobs:
       # Po commicie kustomization, jawnie aplikuje `application.yaml`. 
       # ArgoCD ma polling co 3 minuty — jawny apply zapewnia natychmiastowa synchronizacje bez czeckania.
       - name: Apply ArgoCD Application
-        run: kubectl apply -f argocd/application.yaml
+        run: kubectl apply -f gitops/argocd/application.yaml

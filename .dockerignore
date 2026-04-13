@@ -1,0 +1,18 @@
+# ── Warstwy niepotrzebne dla Docker ──────────────────────────────────────────
+gitops/
+infra/
+docs/
+docker/
+.github/
+.git/
+
+# ── Zależności Node.js — instalowane świeżo przez npm install w obrazie ──────
+**/node_modules/
+
+# ── Logi ─────────────────────────────────────────────────────────────────────
+**/npm-debug.log*
+**/*.log
+
+# ── Zmienne środowiskowe ──────────────────────────────────────────────────────
+**/.env
+**/.env.*

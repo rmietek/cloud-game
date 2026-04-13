@@ -13,7 +13,7 @@
 #   4. Gracze dostają nową wersję serwerow bez żadnej ręcznej interwencji
 #
 # Aby zaaplikować ten plik do klastra:
-#   kubectl apply -f argocd/application.yaml
+#   kubectl apply -f gitops/argocd/application.yaml
 # (wykonywane automatycznie przez GitHub Actions w ci.yml i terraform.yml)
 # ─────────────────────────────────────────────────────────────────────────────
 

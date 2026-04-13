@@ -1,5 +1,8 @@
 'use strict';
 
+const path     = require('path');
+const PUBLIC   = path.join(__dirname, '../public');
+
 const uWS      = require('uWebSockets.js');
 /*
  * uWebSockets.js — serwer WebSocket napisany w C++ z bindingami dla Node.js.
@@ -117,7 +120,7 @@ const { MongoClient, ObjectId } = mongodb;
 
 
 
-const { packet_get, packet_set } = require('./binary.js');
+const { packet_get, packet_set } = require('../../shared/binary.js');
 /*
  * Własny moduł binarnego protokołu komunikacji z klientami gry.
  *
@@ -910,7 +913,7 @@ function setupExpressApp() {
     // ── Pliki specjalne ───────────────────────────────────────────────────────
 
     app.get('/ads.txt', function (req, res) {
-        res.sendFile(__dirname + '/ads.txt');
+        res.sendFile(path.join(PUBLIC, 'ads.txt'));
         /*
          * ads.txt — plik wymagany przez sieci reklamowe (Google AdSense, AdMob).
          * Zawiera listę autoryzowanych vendorów reklamowych.
@@ -919,7 +922,7 @@ function setupExpressApp() {
     });
 
     app.get('/', function (req, res) {
-        res.sendFile(__dirname + '/index.html');
+        res.sendFile(path.join(PUBLIC, 'index.html'));
         /*
          * Główna strona gry — HTML z całym interfejsem klienta.
          * index.html to entry point aplikacji (ładuje Three.js, logikę gry itp.).
@@ -942,11 +945,11 @@ function setupExpressApp() {
     });
 
     // ── Pliki statyczne ───────────────────────────────────────────────────────
-    app.use('/obj',  express.static('obj'));   // modele 3D (.obj, .mtl, .gltf)
-    app.use('/js',   express.static('js'));    // kod JavaScript klienta 
-    app.use('/mp3',  express.static('mp3'));   // dźwięki (muzyka, efekty)
-    app.use('/img',  express.static('img'));   // obrazy (textury, UI, ikonki skinów)
-    app.use('/site', express.static('site'));  // dodatkowe zasoby (CSS, fonty)
+    app.use('/obj',  express.static(path.join(PUBLIC, 'obj')));   // modele 3D (.obj, .mtl, .gltf)
+    app.use('/js',   express.static(path.join(PUBLIC, 'js')));    // kod JavaScript klienta
+    app.use('/mp3',  express.static(path.join(PUBLIC, 'mp3')));   // dźwięki (muzyka, efekty)
+    app.use('/img',  express.static(path.join(PUBLIC, 'img')));   // obrazy (textury, UI, ikonki skinów)
+    app.use('/site', express.static(path.join(PUBLIC, 'site')));  // dodatkowe zasoby (CSS, fonty)
     /*
      * express.static(folder) — middleware serwujące pliki statyczne z podanego folderu.
      *

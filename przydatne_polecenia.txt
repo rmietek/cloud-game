@@ -1,0 +1,213 @@
+Przydatne polecenia:
+kubectl describe svc mother -n default
+kubectl get svc mother -w
+az group list --output table
+
+stern "mother-.*|prz-child-fleet-.*" > zrzut_wszystkich_logow.txt
+kubectl get pods -w
+
+git pull origin master
+git push -u origin master
+az aks get-credentials --resource-group PRZ --name PRZAKSCluster --overwrite-existing
+
+az group delete --name PRZ --yes --no-wait && az group delete --name PRZ-tfstate --yes --no-wait && az group delete --name NetworkWatcherRG --yes --no-wait
+
+
+
+
+------
+Inne:
+
+# Usuwa publiczne IP z alokatora (zwalnia zajęty adres)
+kubectl patch svc agones-allocator -n agones-system -p '{"spec":{"type":"ClusterIP"}}'
+
+# Usuwa żądania o IP dla usługi ping HTTP
+kubectl patch svc agones-ping-http-service -n agones-system -p '{"spec":{"type":"ClusterIP"}}'
+
+# Usuwa żądania o IP dla usługi ping UDP
+kubectl patch svc agones-ping-udp-service -n agones-system -p '{"spec":{"type":"ClusterIP"}}'
+
+az group create \
+    --name PRZ \
+    --location polandcentral
+
+az acr create \
+    --resource-group PRZ \
+    --name przacr \
+    --sku Basic \
+    --location polandcentral
+
+az acr login --name przacr
+
+
+az aks create \
+    --resource-group PRZ \
+    --name PRZAKSCluster \
+    --node-count 1 \
+    --node-vm-size standard_b2s_v2 \
+    --generate-ssh-keys \
+    --attach-acr przacr \
+    --location polandcentral \
+    --enable-node-public-ip
+
+az aks get-credentials --resource-group PRZ --name PRZAKSCluster --overwrite-existing
+
+helm repo add agones https://agones.dev/site/charts
+helm repo update
+helm install my-release --namespace agones-system --create-namespace agones/agones
+
+kubectl patch svc agones-allocator -n agones-system -p '{"spec":{"type":"ClusterIP"}}'
+kubectl patch svc agones-ping-http-service -n agones-system -p '{"spec":{"type":"ClusterIP"}}'
+kubectl patch svc agones-ping-udp-service -n agones-system -p '{"spec":{"type":"ClusterIP"}}'
+
+
+docker build -f Dockerfile.mother -t przacr.azurecr.io/prz-mother:latest .
+docker push przacr.azurecr.io/prz-mother:latest
+
+docker build -f Dockerfile.child -t przacr.azurecr.io/prz-child:latest .
+docker push przacr.azurecr.io/prz-child:latest
+
+
+
+az provider register --namespace Microsoft.DocumentDB
+az cosmosdb create \
+    --name prz-cosmos-db \
+    --resource-group PRZ \
+    --kind MongoDB \
+    --server-version 6.0 \
+    --locations regionName="polandcentral" failoverPriority=0 isZoneRedundant=False
+
+az cosmosdb keys list --name prz-cosmos-db --resource-group PRZ --type connection-strings --query "connectionStrings[0].connectionString" --output tsv
+
+
+kubectl create secret generic cosmos-db-secret --from-literal=MONGO_URL='mongodb://prz-cosmos-db:PBroMlhC6SwIc41OOKDJthUpn3KmcRB9huQV4VGFYC3mu3j7hVMGll0V64m2v5UI1hFoRxvMJggcACDbDEuLAw==@prz-cosmos-db.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@prz-cosmos-db@'
+
+
+
+kubectl apply -f prz-microservices.yaml
+kubectl apply -f mother-hpa.yaml
+kubectl apply -f prz-agones.yaml
+
+
+NODE_RG=$(az aks show --resource-group PRZ --name PRZAKSCluster --query nodeResourceGroup -o tsv)
+NSG_NAME=$(az network nsg list --resource-group $NODE_RG --query "[0].name" -o tsv)
+az network nsg rule create \
+    --resource-group $NODE_RG \
+    --nsg-name $NSG_NAME \
+    --name AllowAgonesPorts \
+    --access Allow \
+    --protocol Tcp \
+    --direction Inbound \
+    --priority 1000 \
+    --source-address-prefix Internet \
+    --source-port-range "*" \
+    --destination-address-prefix "*" \
+    --destination-port-range 7000-8000
+
+
+
+
+
+az group list --output tab
+
+az login
+for rg in PRZ PRZ-tfstate NetworkWatcherRG; do az group delete --name $rg --yes --no-wait; done
+
+az group delete --name prz_chmury_rg --yes --no-wait
+az group list --output table
+
+az group delete --name NetworkWatcherRG --yes --no-wait
+
+kubectl logs prz-child-fleet-dhxbw-twjl2 -c child
+kubectl rollout restart deployment mother
+
+kubectl patch fleet prz-child-fleet --type=merge -p "{\"spec\": {\"template\": {\"metadata\": {\"annotations\": {\"date\": \"$(date +%s)\"}}}}}"
+
+az group delete --name PRZ
+
+
+az provider register --namespace Microsoft.DocumentDB
+az cosmosdb create \
+    --name prz-cosmos-db \
+    --resource-group PRZ \
+    --kind MongoDB \
+    --server-version 6.0 \
+    --locations regionName="polandcentral" failoverPriority=0 isZoneRedundant=False
+
+az cosmosdb keys list --name prz-cosmos-db --resource-group PRZ --type connection-strings --query "connectionStrings[0].connectionString" --output tsv
+
+
+kubectl create secret generic cosmos-db-secret --from-literal=MONGO_URL='TUTAJ_WKLEJ_SWOJ_SKOPIOWANY_STRING'
+
+kubectl create secret generic cosmos-db-secret --from-literal=MONGO_URL='mongodb://prz-cosmos-db:OFzLAJNXf1Jr8dDFX0RtdlnG3gVJhGVBDVB2RQuxfKWn4KAoMz7yQfcbrn0iNyGYCgHuMEvuvFHPACDbwtbriw==@prz-cosmos-db.mongo.cosmos.azure.com:10255/?ssl=true&replicaSet=globaldb&retrywrites=false&maxIdleTimeMS=120000&appName=@prz-cosmos-db@'
+
+
+NODE_RG=$(az aks show --resource-group PRZ --name PRZAKSCluster --query nodeResourceGroup -o tsv)
+NSG_NAME=$(az network nsg list --resource-group $NODE_RG --query "[0].name" -o tsv)
+az network nsg rule create \
+    --resource-group $NODE_RG \
+    --nsg-name $NSG_NAME \
+    --name AllowAgonesPorts \
+    --access Allow \
+    --protocol Tcp \
+    --direction Inbound \
+    --priority 1000 \
+    --source-address-prefix Internet \
+    --source-port-range "*" \
+    --destination-address-prefix "*" \
+    --destination-port-range 7000-8000
+
+
+kubectl get svc mother -w
+ 
+az login
+az acr login --name przacr
+docker build -f Dockerfile.mother -t przacr.azurecr.io/prz-mother:latest . && docker push przacr.azurecr.io/prz-mother:latest && docker build -f Dockerfile.child -t przacr.azurecr.io/prz-child:latest . && docker push przacr.azurecr.io/prz-child:latest
+
+
+az aks get-credentials --resource-group PRZ --name PRZAKSCluster --overwrite-existing
+
+
+kubectl delete pods -l agones.dev/fleet=prz-child-fleet
+
+ 
+kubectl describe svc mother -n default
+
+
+$ kubectl get svc -A
+NAMESPACE       NAME                                TYPE           CLUSTER-IP     EXTERNAL-IP      PORT(S)                         AGE
+agones-system   agones-allocator                    ClusterIP      10.0.24.248    <none>           443/TCP                         111m
+agones-system   agones-allocator-metrics-service    ClusterIP      10.0.251.126   <none>           8080/TCP                        111m
+agones-system   agones-controller-metrics-service   ClusterIP      10.0.183.27    <none>           8080/TCP                        111m
+agones-system   agones-controller-service           ClusterIP      10.0.234.173   <none>           443/TCP,8080/TCP                111m
+agones-system   agones-extensions-metrics-service   ClusterIP      10.0.67.226    <none>           8080/TCP                        111m
+agones-system   agones-ping-http-service            ClusterIP      10.0.44.54     <none>           80/TCP                          111m
+agones-system   agones-ping-udp-service             ClusterIP      10.0.209.44    <none>           50000/UDP                       111m
+argocd          argocd-applicationset-controller    ClusterIP      10.0.130.31    <none>           7000/TCP                        109m
+argocd          argocd-dex-server                   ClusterIP      10.0.48.36     <none>           5556/TCP,5557/TCP               109m
+argocd          argocd-redis                        ClusterIP      10.0.81.146    <none>           6379/TCP                        109m
+argocd          argocd-repo-server                  ClusterIP      10.0.10.205    <none>           8081/TCP                        109m
+argocd          argocd-server                       ClusterIP      10.0.109.61    <none>           80/TCP,443/TCP                  109m
+default         kubernetes                          ClusterIP      10.0.0.1       <none>           443/TCP                         114m
+default         mother                              LoadBalancer   10.0.225.73    134.112.163.97   9876:30755/TCP,3001:32456/TCP   10m
+default         prz-child                           ClusterIP      10.0.83.155    <none>           80/TCP                          10m
+default         prz-mother                          ClusterIP      10.0.76.54     <none>           80/TCP                          10m
+default         redis                               ClusterIP      10.0.53.34     <none>           6379/TCP                        10m
+kube-system     kube-dns                            ClusterIP      10.0.0.10      <none>           53/UDP,53/TCP                   114m
+kube-system     metrics-server                      ClusterIP      10.0.18.135    <none>           443/TCP              
+
+ 
+
+
+# Storage Account na stan Terraform
+az group create --name PRZ-tfstate --location polandcentral
+
+az storage account create \
+  --name przterraformstate \
+  --resource-group PRZ-tfstate \
+  --location polandcentral \
+  --sku Standard_LRS
+
+az storage container create \
+  --name tfstate \
+  --account-name przterraformstate

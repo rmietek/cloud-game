@@ -12,15 +12,14 @@
 #   4. ArgoCD widzi zmianę i wdraża nowe wersje na serwer
 # 
 # ─────────────────────────────────────────────────────────────────────────────
-
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: przacr.azurecr.io/prz-child
   newName: przacr.azurecr.io/prz-child
-  newTag: 664e308a
+  newTag: 14fcff14
 - name: przacr.azurecr.io/prz-mother
   newName: przacr.azurecr.io/prz-mother
-  newTag: 664e308a
+  newTag: 14fcff14
 resources:
 - ../../base

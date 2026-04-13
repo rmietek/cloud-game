@@ -1,11 +1,26 @@
+# ─── ZASADA DZIALANIA ────────────────────────────────────────────────────────
+# Ten plik mówi serwerowi KTÓRE DOKŁADNIE WERSJE aplikacji mają być uruchomione.
+#
+# Jest automatycznie aktualizowany przez bota (GitHub Actions ci.yml)
+# za każdym razem gdy wgram nowy kod. NIE edytuje go ręcznie — przy następnym
+# push zostanie nadpisany przez bota.
+#
+# Jak to działa:
+#   1. Wgrywasz kod na master
+#   2. Bot buduje nowe paczki (obrazy Docker) i nadaje im numer wersji (np. "7647d8b9")
+#   3. Bot aktualizuje pola "newTag" poniżej na ten numer
+#   4. ArgoCD widzi zmianę i wdraża nowe wersje na serwer
+# 
+# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: przacr.azurecr.io/prz-child
   newName: przacr.azurecr.io/prz-child
-  newTag: 1e51f8b5
+  newTag: 1e51f8b5    # ← ten numer zmienia bot (pierwsze 8 znaków SHA ostatniego commita)
 - name: przacr.azurecr.io/prz-mother
   newName: przacr.azurecr.io/prz-mother
   newTag: 1e51f8b5
-resources:
-- ../../base
+resources:          # ← oba serwisy zawsze mają ten sam numer (z tego samego commita)
+- ../../base # Dołącz całą bazową konfigurację (Redis, Mother, HPA, Agones)

@@ -7,12 +7,24 @@ Projekt wykorzystuje dwie bazy danych z podziałem odpowiedzialności:
 - **MongoDB** — trwały zapis danych graczy (konta, punkty, skiny)
 - **Redis** — komunikacja między serwerami i stan aktywnych gier (w RAM, ulotne)
 
-Warstwa logiki biznesowej to **mother.js** (Node.js) — orkiestruje operacje między klientem, MongoDB i Redis.
+Logika biznesowa jest podzielona między **dwa niezależne procesy Node.js**:
+
+| Proces | Rola | Łączy się z |
+|--------|------|-------------|
+| **mother.js** | Serwer lobby — logowanie, rejestracja, sklep, tokeny dołączenia | MongoDB + Redis |
+| **child.js** | Serwer gry — rozgrywka, pozycje graczy, punkty, heartbeat | MongoDB + Redis |
+
+Każdy proces ma **własne, niezależne połączenia** z MongoDB i Redis — nie komunikują się ze sobą przez HTTP, tylko przez Redis pub/sub.
 
 ```
-Przeglądarka ──WebSocket──► mother.js ──CRUD──► MongoDB (konta graczy)
-                                      ──pub/sub─► Redis  (stan gier, tokeny)
-child.js (serwer gry) ────────────────────────► Redis  (rejestracja, heartbeat)
+Przeglądarka ──WebSocket (port 3001)──► mother.js ──CRUD──────► MongoDB (konta)
+             ──HTTP      (port 9876)──►           ──pub/sub──► Redis
+                                                               ▲   │
+                                                               │   │ pub/sub
+child.js ──────────────────────────────────────────────────────┘   │
+  │  (rejestruje grę, heartbeat, aktualizuje licznik graczy)       │
+  │                                                             ◄───┘
+  └──CRUD──────────────────────────────────────────────────► MongoDB (punkty graczy)
 ```
 
 ---
@@ -210,18 +222,37 @@ Protokół Redis: po wywołaniu `SUBSCRIBE` klient wchodzi w tryb "subscriber mo
 
 ## 3. Rola mother.js — Orkiestracja
 
-### 3.1 Kiedy uderza do MongoDB, kiedy do Redis
+### 3.1 Kto co zapisuje — podział między mother.js a child.js
 
-| Operacja | Cel | Funkcja |
-|----------|-----|---------|
+#### mother.js — właściciel danych kont (MongoDB)
+
+| Operacja | Baza | Funkcja |
+|----------|------|---------|
 | Rejestracja konta | **MongoDB** `insertOne` | `POST /auth/register` |
 | Logowanie | **MongoDB** `findOne` + `updateOne` (last_login) | `POST /auth/login` |
 | Pobranie danych konta | **MongoDB** `findOneAndUpdate` | `handleFetchAccount` |
 | Zakup skina | **MongoDB** `findOneAndUpdate` (atomowe) | `handleBuySkin` |
 | Zmiana nicku | **MongoDB** `findOneAndUpdate` | `handleChangeName` |
-| Lista serwerów | **Redis** `SMEMBERS` + `HGETALL` | `buildGamesPacket` |
+| Lista serwerów | **Redis** `SMEMBERS` + `HGETALL` (odczyt) | `buildGamesPacket` |
 | Dołączenie do gry | **Redis** `HGETALL` (weryfikacja) + `PUBLISH` (token) | `handleJoinGame` |
-| Reconnect do gry | **Redis** `EXISTS` | `handleReconnect` |
+| Reconnect do gry | **Redis** `EXISTS` (odczyt) | `handleReconnect` |
+
+**mother.js nigdy nie zapisuje do Redis** — tylko czyta stan gier i publikuje tokeny.
+
+---
+
+#### child.js — właściciel stanu gier (Redis) i punktów (MongoDB)
+
+| Operacja | Baza | Kiedy |
+|----------|------|-------|
+| Rejestracja serwera gry | **Redis** `HSET game:{id}` + `SADD game_ids` | Start procesu |
+| Heartbeat (odświeżanie TTL) | **Redis** `EXPIRE game:{id} 5` + `HSET g_players_len` | Co ~1 sekundę |
+| Powiadomienie lobby | **Redis** `PUBLISH lobby_update` | Co ~1 sekundę |
+| Odbiór tokenów | **Redis** `SUBSCRIBE join:{game_id}` | Nasłuchuje cały czas |
+| Czyszczenie przy zamknięciu | **Redis** `DEL game:{id}` + `SREM game_ids` | SIGTERM / shutdown |
+| Zapis punktów po śmierci | **MongoDB** `updateOne $inc { points, total_points }` | Gdy gracz ginie |
+
+**child.js nigdy nie dotyka kolekcji `users` poza aktualizacją punktów** — całe zarządzanie kontem należy do mother.js.
 
 ### 3.2 Strategia cache'owania
 

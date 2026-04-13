@@ -1,18 +1,36 @@
+# ─── HORIZONTAL POD AUTOSCALER — MOTHER ──────────────────────────────────────
+# HPA automatycznie skaluje liczbę replik Deploymentu Mother
+# w zależności od obciążenia CPU.
+#
+# Dlaczego Mother potrzebuje HPA?
+#   Mother (lobby) obsługuje WSZYSTKICH graczy naraz — przeglądanie listy serwerów,
+#   logowanie, rejestracja. Przy dużym ruchu jeden pod nie wystarczy do obsługi żądań.
+#
+# Jak działa HPA:
+#   K8s Metrics Server mierzy zużycie CPU w podach co ~15 sekund.
+#   Jeśli średnie CPU > averageUtilization% → dodaj repliki.
+#   Jeśli CPU spada → zmniejsz repliki (z opóźnieniem ~5 min, "scale down stabilization").
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
 apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
+kind: HorizontalPodAutoscaler # Typ obiektu, który automatycznie reguluje ilość replik na podstawie obciążenia.
 metadata:
-  name: mother-hpa
-spec:
-  scaleTargetRef:
+  name: mother-hpa # Nazwa HPA
+spec:              #  konfiguracja zachowania
+  scaleTargetRef:  # wskazuje na cel, który będziemy skalować
     apiVersion: apps/v1
-    kind: Deployment
+    kind: Deployment # Cel to Deployment o nazwie mother (backend)
+                     # Deployment to obiekt Kubernetes który opisuje jak uruchomić aplikację i ile jej kopii ma działać.
     name: mother
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
+
+  #  Ile replik (kopii poda) ma działać:
+  minReplicas: 1   # HPA nigdy nie usunie ostatniego Poda; zawsze będzie działać minimum jeden
+  maxReplicas: 10  # Nawet przy maksymalnym obciążeniu powstanie maksymalnie 10 podów
+  metrics:         # Jakie wskaźniki decydują o skalowaniu
+  - type: Resource # typ wskaźnika to sprzęt klastra
     resource:
-      name: cpu
+      name: cpu    # konkretnie użycie procesora (CPU)
       target:
         type: Utilization
-        averageUtilization: 10 
+        averageUtilization: 10 # próg skalowania w górę ustalony na 10% średniego zużycia CPU

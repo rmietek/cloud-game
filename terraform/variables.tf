@@ -1,95 +1,106 @@
+# ─── ZMIENNE TERRAFORM ────────────────────────────────────────────────────────
+# Zmienne pozwalają nie wpisywać wartości na stałe w kodzie.
+# Wartości domyślne (default) działają od razu bez żadnej konfiguracji.
+# Zmienne bez default (np. github_pat) muszą być podane przy uruchomieniu —
+# przez plik terraform.tfvars lub zmienne środowiskowe TF_VAR_*.
+# ─────────────────────────────────────────────────────────────────────────────
+
 variable "resource_group_name" {
-  description = "Name of the Azure Resource Group"
+  description = "Nazwa grupy zasobów Azure grupującej całą infrastrukturę projektu"
   type        = string
   default     = "PRZ"
 }
 
 variable "location" {
-  description = "Azure region for all resources"
+  description = "Region Azure gdzie tworzone są wszystkie zasoby"
   type        = string
-  default     = "polandcentral"
+  default     = "polandcentral" # Polska — najmniejsze opóźnienia dla graczy z PL
 }
 
-# ---------- ACR ----------
+# ---------- ACR — rejestr obrazów Docker ----------
 variable "acr_name" {
-  description = "Name of the Azure Container Registry (globally unique, lowercase, alphanumeric)"
+  description = "Nazwa rejestru obrazów Docker (musi być globalnie unikalna w całym Azure, tylko małe litery i cyfry)"
   type        = string
   default     = "przacr"
 }
 
 variable "acr_sku" {
-  description = "SKU of the Azure Container Registry"
+  description = "Plan cenowy ACR — Basic wystarczy na potrzeby projektu (tańszy, mniejsze limity)"
   type        = string
   default     = "Basic"
 }
 
-# ---------- AKS ----------
+# ---------- AKS — klaster Kubernetes ----------
 variable "aks_cluster_name" {
-  description = "Name of the AKS cluster"
+  description = "Nazwa klastra Kubernetes na Azure"
   type        = string
   default     = "PRZAKSCluster"
 }
 
 variable "aks_node_count" {
-  description = "Number of nodes in the default node pool"
+  description = "Liczba maszyn wirtualnych w klastrze (węzłów) — 1 wystarczy na projekt"
   type        = number
   default     = 1
 }
 
 variable "aks_node_vm_size" {
-  description = "VM size for AKS nodes"
+  description = "Rozmiar maszyny wirtualnej węzła (CPU/RAM) — standard_b2s_v2 to 2 CPU / 4 GB RAM"
   type        = string
   default     = "standard_b2s_v2"
 }
 
 variable "aks_dns_prefix" {
-  description = "DNS prefix for the AKS cluster"
+  description = "Prefix DNS dla adresu API klastra (musi być unikalny w regionie)"
   type        = string
   default     = "przakscluster"
 }
 
-# ---------- CosmosDB ----------
+# ---------- CosmosDB — baza danych graczy ----------
 variable "cosmosdb_account_name" {
-  description = "Name of the Cosmos DB account (globally unique)"
+  description = "Nazwa konta CosmosDB (musi być globalnie unikalna w całym Azure)"
   type        = string
   default     = "prz-cosmos-db"
 }
 
 variable "cosmosdb_mongo_version" {
-  description = "MongoDB server version for Cosmos DB"
+  description = "Wersja API MongoDB emulowana przez CosmosDB"
   type        = string
   default     = "6.0"
 }
 
-# ---------- Agones NSG ----------
+# ---------- Agones — porty serwerów gry ----------
+# Agones przydziela każdemu serwerowi Child port z tego zakresu.
+# Zakres 7000-8000 daje 1000  możliwych portów do serwerów
 variable "agones_port_range_start" {
-  description = "Start of the Agones game server port range"
+  description = "Początek zakresu portów dla serwerów gry Agones"
   type        = number
   default     = 7000
 }
 
 variable "agones_port_range_end" {
-  description = "End of the Agones game server port range"
+  description = "Koniec zakresu portów dla serwerów gry Agones"
   type        = number
   default     = 8000
 }
 
-# ---------- GitHub (OIDC) ----------
+# ---------- GitHub — konto używane przez GitHub Actions ----------
 variable "github_org" {
-  description = "GitHub organization or username (owner of the repo)"
+  description = "Nazwa użytkownika lub organizacji GitHub (właściciel repozytorium)"
   type        = string
-  default     = "dw-droid"   
+  default     = "dw-droid"
 }
 
 variable "github_repo" {
-  description = "GitHub repository name"
+  description = "Nazwa repozytorium GitHub"
   type        = string
-  default     = "test"      
+  default     = "test"
 }
 
-# ---------- GitHub PAT (dla ArgoCD) ----------
+# ---------- GitHub PAT — token dostępu dla ArgoCD ----------
+# sensitive = true — wartość nie jest wypisywana w logach ani terminalu.
+# Przekazywany przez zmienną środowiskową TF_VAR_github_pat lub terraform.tfvars.
 variable "github_pat" {
-  description = "GitHub Personal Access Token z uprawnieniem repo (read) — dla ArgoCD"
+  description = "GitHub Personal Access Token z uprawnieniem repo (read) — ArgoCD używa go do odczytu repozytorium"
   type        = string
   sensitive   = true
 }

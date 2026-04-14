@@ -55,12 +55,6 @@ cloud-game/
 │       └── outputs.tf             # Wartości wyjściowe
 │
 ├── docs/                          # Dokumentacja
-│   ├── architektura-bazy-danych-i-redis.md
-│   ├── frontend.md
-│   ├── serializator.md
-│   ├── terraform.md
-│   ├── infrastruktura-skrot.txt
-│   └── przydatne_polecenia.txt
 │
 ├── .github/
 │   └── workflows/

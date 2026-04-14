@@ -763,12 +763,7 @@
     /* Panel logowania pulsuje neonowym blaskiem (3-sekundowy cykl) */
     #login { animation: pulse-neon 3s ease-in-out infinite; }
 
-    /* ── Skalowanie UI względem bazowej rozdzielczości 2560x1440 ── */
-    body { zoom: 1.04; }
-    @media (max-width: 1920px) { body { zoom: 0.85; } }
-    @media (max-width: 1600px) { body { zoom: 0.75; } }
-    @media (max-width: 1366px) { body { zoom: 0.65; } }
-    @media (max-width: 1280px) { body { zoom: 0.60; } }
+    /* ── Skalowanie UI — obsługiwane przez JS updateScale() ── */
 
     /* ── Layout mobilny ── */
     @media (max-width: 768px) {
@@ -1009,6 +1004,29 @@
        Działa całkowicie niezależnie od reszty gry — tylko animacja CSS canvas.
   ══════════════════════════════════════════════════════════════ -->
   <script>
+  // ── Skalowanie UI ────────────────────────────────────────────────────────────
+  // Zoom zmniejsza się tylko gdy okno jest węższe lub niższe niż sam UI.
+  // Przy przeciągnięciu na pół monitora 2560x1440 (→ 1280x1440):
+  //   szerokość 1280 > UI_W 760 → brak zmniejszania z powodu szerokości
+  //   wysokość 1440  > UI_H 680 → brak zmniejszania z powodu wysokości
+  //   wynik: zoom = MAX = 1.04 (bez zmian)
+  (function () {
+    const UI_W = 760;  // naturalna szerokość lobby (#login 440 + gap 16 + #server-list 285 + margines)
+    const UI_H = 680;  // naturalna wysokość lobby
+    const MAX  = 1.04; // maksymalny zoom
+
+    function updateScale() {
+      if (window.innerWidth <= 768) return; // mobile ma osobny layout
+      const scaleX = window.innerWidth  >= UI_W ? MAX : window.innerWidth  / UI_W;
+      const scaleY = window.innerHeight >= UI_H ? MAX : window.innerHeight / UI_H;
+      document.body.style.zoom = Math.min(scaleX, scaleY, MAX);
+    }
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+  })();
+  // ─────────────────────────────────────────────────────────────────────────────
+
   (function () {
 
     // ── CZĘŚĆ 1: MIGOTAJĄCE GWIAZDY ─────────────────────────────────────────

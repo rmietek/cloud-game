@@ -1706,7 +1706,7 @@
       row.className = 'sv-row' + (isSel ? ' sv-selected' : '') + (isFull ? ' sv-full' : '');
       row.querySelector('.sv-flag').textContent = flag;
       row.querySelector('.sv-name').textContent = label;
-      row.querySelector('.sv-sub').innerHTML  = '#' + index + '  <span class="sv-players">' + game.g_players_len + '/' + game.g_players_lim + '</span>  graczy';
+      row.querySelector('.sv-sub').innerHTML  = '<span class="sv-players">' + game.g_players_len + '/' + game.g_players_lim + '</span>    graczy';
       // Podtytuł: "# indeks  3/15"
 
       const bar = row.querySelector('.sv-bar');

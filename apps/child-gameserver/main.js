@@ -424,8 +424,7 @@ const { MongoClient, ObjectId } = require('mongodb');
 
 
 const fs         = require('fs');
-const isDocker   = fs.existsSync('/.dockerenv');
-const bin        = require(isDocker ? './shared/binary.js' : '../shared/binary.js');
+const bin        = require(fs.existsSync('./shared/binary.js') ? './shared/binary.js' : '../shared/binary.js');
 const packet_get = bin.packet_get;
 const packet_set = bin.packet_set;
 // Własny moduł do kodowania/dekodowania pakietów binarnych.

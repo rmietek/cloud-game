@@ -371,7 +371,7 @@
     .sv-l    { display: flex; align-items: center; gap: 9px; min-width: 0; }
     .sv-flag { font-size: 18px; flex-shrink: 0; }
     .sv-name { font-family: var(--fd); font-size: 10px; letter-spacing: 1px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sv-sub  { font-size: 10px; color: rgba(255, 255, 255, 0.45); letter-spacing: 0.5px; margin-top: 1px; }
+    .sv-sub  { font-size: 12px; color: rgba(255, 255, 255, 0.45); letter-spacing: 0.5px; margin-top: 1px; }
     .sv-players { font-size: 12px; font-weight: bold; color: var(--ng); letter-spacing: 1px; }
 
     /* Prawa część wiersza: pasek zapełnienia + checkmark */
@@ -1706,7 +1706,7 @@
       row.className = 'sv-row' + (isSel ? ' sv-selected' : '') + (isFull ? ' sv-full' : '');
       row.querySelector('.sv-flag').textContent = flag;
       row.querySelector('.sv-name').textContent = label;
-      row.querySelector('.sv-sub').innerHTML  = '#' + index + '  <span class="sv-players">' + game.g_players_len + '/' + game.g_players_lim + '</span>';
+      row.querySelector('.sv-sub').innerHTML  = '#' + index + '  <span class="sv-players">' + game.g_players_len + '/' + game.g_players_lim + '</span>  graczy';
       // Podtytuł: "# indeks  3/15"
 
       const bar = row.querySelector('.sv-bar');

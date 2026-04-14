@@ -600,7 +600,7 @@
     }
     /* Napis "◆ LEADERBOARD" jako pseudo-element (nie zajmuje miejsca w HTML) */
     #ranking::before {
-      content: '◆ LEADERBOARD';
+      content: '◆ RANKING';
       display: block; font-size: 9px; letter-spacing: 3px;
       color: var(--nb); margin-bottom: 7px; opacity: 0.72;
     }
@@ -802,9 +802,9 @@
 
   <!-- Panel czatu (lewy dolny róg) -->
   <div id="chat" style="display:none; flex-direction:column;">
-    <div id="chat-label">CHAT · ENTER TO SEND</div>
+    <div id="chat-label">CHAT · ENTER ABY WYSŁAĆ</div>
     <div id="text"></div><!-- Wiadomości wypełniane przez appendChat() -->
-    <input id="sendtext" placeholder="Type a message…"/>
+    <input id="sendtext" placeholder="Napisz wiadomość…"/>
   </div>
 
   <!-- TODO: Placeholder na reklamę sieciową (banner 300x250 — standardowy format) -->

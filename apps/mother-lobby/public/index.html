@@ -735,9 +735,9 @@
     #rebut:hover { transform: translateY(-2px); box-shadow: 0 6px 30px rgba(255, 50, 50, 0.52); }
 
     /* Logo w prawym dolnym rogu (widoczne w lobby i na ekranie śmierci) */
-    #vaxx-logo { position: fixed; bottom: 16px; right: 16px; z-index: 1; }
-    #vaxx-logo img { width: clamp(88px, 12vw, 150px); border-radius: 12%; border: 1px solid rgba(0, 149, 255, 0.4); opacity: 0.86; cursor: pointer; transition: opacity 0.2s; }
-    #vaxx-logo img:hover { opacity: 1; }
+    #game-logo { position: fixed; bottom: 16px; right: 16px; z-index: 1; }
+    #game-logo img { width: clamp(88px, 12vw, 150px); border-radius: 12%; border: 1px solid rgba(0, 149, 255, 0.4); opacity: 0.86; cursor: pointer; transition: opacity 0.2s; }
+    #game-logo img:hover { opacity: 1; }
 
     /* ── Animacje globalne ── */
     @keyframes pulse-neon {
@@ -950,7 +950,7 @@
   <!-- Stopka z autorami i logo (widoczna w lobby) -->
   <div id="media">
     <img src="img/autorzy.png" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);height:42px;border-radius:8px;z-index:1;cursor:pointer;"/>
-    <div id="vaxx-logo">
+    <div id="game-logo" style="display:none">
       <img src="img/logo.png" onclick="window.open('http://gra:100','gra')"/>
     </div>
   </div>

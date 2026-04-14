@@ -120,7 +120,9 @@ const { MongoClient, ObjectId } = mongodb;
 
 
 
-const { packet_get, packet_set } = require('./shared/binary.js');
+const fs = require('fs');
+const isDocker = fs.existsSync('/.dockerenv');
+const { packet_get, packet_set } = require(isDocker ? './shared/binary.js' : '../shared/binary.js');
 /*
  * Własny moduł binarnego protokołu komunikacji z klientami gry.
  *

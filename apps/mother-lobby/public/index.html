@@ -301,7 +301,7 @@
       margin-bottom: 16px;
       pointer-events: none; user-select: none;
     }
-    #country-label { flex: 1; text-align: center; }
+    #country-label { flex: 1; text-align: center; font-size: 14px; }
 
     /* ── Panel listy serwerów (prawa kolumna lobby) ── */
     #server-list-panel {
@@ -324,7 +324,7 @@
       flex-shrink: 0; /* Nie kurczy się gdy lista jest długa */
     }
     #sl-header span {
-      font-family: var(--fd); font-size: 10px;
+      font-family: var(--fd); font-size: 13px;
       letter-spacing: 3px; color: var(--nb);
       opacity: 0.75; display: block; margin-bottom: 6px;
     }
@@ -489,7 +489,7 @@
     }
     .auth-tab {
       flex: 1; padding: 8px 0;
-      font-family: var(--fd); font-size: 10px; letter-spacing: 2px;
+      font-family: var(--fd); font-size: 12px; letter-spacing: 2px;
       text-align: center; cursor: pointer;
       color: rgba(0, 212, 255, 0.55);
       background: rgba(0, 0, 0, 0.3);
@@ -503,7 +503,7 @@
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(0, 212, 255, 0.25);
       border-radius: 9px; color: white;
-      font-family: var(--fb); font-size: 13px;
+      font-family: var(--fb); font-size: 16px;
       padding: 0 12px; outline: none;
       transition: border-color 0.2s;
       margin-bottom: 9px;
@@ -555,7 +555,7 @@
     /* Przycisk Logout — absolutnie pozycjonowany w prawym górnym rogu panelu konta */
     #logout {
       position: absolute; top: 10px; right: 10px;
-      padding: 4px 10px; font-size: 9px;
+      padding: 4px 10px; font-size: 12px;
       font-family: var(--fd); letter-spacing: 1px;
       color: rgba(255, 100, 100, 0.8);
       border: 1px solid rgba(255, 100, 100, 0.32);
@@ -877,16 +877,16 @@
           [5] = #logout (przycisk wylogowania — absolutny)
       -->
       <div id="account" style="display:none;">
-        <div>Ranking name:</div>
+        <div>NAZWA GRACZA:</div>
         <div>
-          <span id="r_name"></span><!-- Imię gracza (aktualizowane przez JS) -->
+          <span id="r_name" style="letter-spacing: 2px;"></span><!-- Imię gracza (aktualizowane przez JS) -->
           <input id="r_name_che" maxlength="19" style="display:none;" type="text"/><!-- Pole edycji imienia -->
-          <span id="r_name_acc">&#9881;</span><!-- Ikona ⚙ — klikalność obsługiwana przez JS -->
+          <span id="r_name_acc" style="font-family:var(--fb);font-size:14px;opacity:0.5;">⌨</span><!-- klikalność obsługiwana przez JS -->
         </div>
         <div>email</div>       <!-- Placeholder — nadpisywany przez JS (" user@x.com") -->
-        <div>points</div>      <!-- Placeholder — nadpisywany przez JS (" 15000 Gold")   -->
-        <div>totalpoints</div> <!-- Placeholder — nadpisywany przez JS ("Total: 45000")    -->
-        <div id="logout">Logout</div>
+        <div style="letter-spacing: 1px;">points</div>      <!-- Placeholder — nadpisywany przez JS (" 15000 Gold")   -->
+        <div>totalpoints</div> <!-- Placeholder — nadpisywany przez JS ("ŁĄCZNIE: 45000 🪙") -->
+        <div id="logout">WYLOGUJ</div>
       </div>
 
       <!-- Pasek lokalizacji / wybranego serwera — aktualizowany przez setSelectedServer() -->
@@ -902,7 +902,7 @@
 
       <!-- Nick gracza (max 9 znaków — ograniczenie serwera) + przycisk PLAY -->
       <input type="text" maxlength="9" id="nick" placeholder="NICKNAME" autocomplete="off">
-      <div onclick="init_run()" id="play">▶ &nbsp; PLAY</div>
+      <div onclick="init_run()" id="play">▶ &nbsp; ROZPOCZNIJ GRĘ</div>
       <!--
         onclick="init_run()" — init_run() to alias przypisany
         w connectToMother() do właściwego handlera PLAY.
@@ -912,7 +912,7 @@
 
     <!-- Panel listy serwerów (prawa kolumna) -->
     <div id="server-list-panel">
-      <div id="sl-header"><span>SERVERS</span></div>
+      <div id="sl-header"><span>SERWERY</span></div>
       <div id="sl-scroll" style="zoom: 1.2;">
         <div id="sl-rows">
           <!-- Wypełniany dynamicznie przez rebuildServerList() — aktualizowany co ~500ms -->
@@ -1706,7 +1706,7 @@
       row.className = 'sv-row' + (isSel ? ' sv-selected' : '') + (isFull ? ' sv-full' : '');
       row.querySelector('.sv-flag').textContent = flag;
       row.querySelector('.sv-name').textContent = label;
-      row.querySelector('.sv-sub').innerHTML  = '<span class="sv-players">' + game.g_players_len + '/' + game.g_players_lim + '</span>    graczy';
+      row.querySelector('.sv-sub').innerHTML  = '<span class="sv-players">' + game.g_players_len + '/' + game.g_players_lim + '</span> graczy';
       // Podtytuł: "# indeks  3/15"
 
       const bar = row.querySelector('.sv-bar');
@@ -1836,7 +1836,7 @@
     selectedCountry = game.g_location;
     const flag = SRV_FLAGS[game.g_location] || '🌐';
     document.getElementById('country-label').innerHTML =
-      flag + ' &nbsp;' + index + '. ' + (game.g_name || SRV_LABELS[game.g_location] || game.g_location);
+      flag + ' &nbsp;' + (game.g_name || SRV_LABELS[game.g_location] || game.g_location);
     // Wynik w #country-label: np. "🌍  2. EU-Phantom" lub "🇺🇸  0. Server America"
   }
 
@@ -1910,7 +1910,7 @@
   $('#r_name_acc').onclick = function () {
     if (NES.editing) {
       // === Wyjście z trybu edycji: zatwierdź i wyślij nową nazwę ===
-      $('#r_name_acc').innerHTML = '&#9745'; // ☑ → ikona zatwierdzenia
+      $('#r_name_acc').innerHTML = 'zatwierdź'; // tryb zatwierdzenia
       // Pokaż input, ukryj span z aktualną nazwą
       $('#r_name_che').style.display = 'inline';
       $('#r_name').style.display     = 'none';
@@ -1918,7 +1918,7 @@
     } else {
       // === Wejście do trybu edycji: wyślij poprzednią nazwę ===
       // (lub zacznij nową edycję — logika wysyła co jest w inpucie)
-      $('#r_name_acc').innerHTML     = '&#9881'; // ⚙ → ikona trybu podglądu
+      $('#r_name_acc').innerHTML     = '⌨'; // tryb podglądu
       // Ukryj input, pokaż span z aktualną nazwą
       $('#r_name_che').style.display = 'none';
       $('#r_name').style.display     = 'inline';
@@ -2350,9 +2350,9 @@
           $('#r_name').innerText  = name;      // Wyświetlane imię
 
           // Aktualizuj elementy przez indeks children[] (HTML ma stałą strukturę)
-          $('#account').children[2].innerText = '📧 ' + email;
-          $('#account').children[3].innerText = '🪙 ' + points + ' Gold';
-          $('#account').children[4].innerText = 'Total: ' + tp;
+          $('#account').children[2].style.display = 'none';
+          $('#account').children[3].innerText = 'DO WYDANIA: 🪙 ' + points;
+          $('#account').children[4].innerText = 'ŁĄCZNIE ZEBRAŁEŚ: ' + tp + ' 🪙';
 
           accountSkins = os; // Zapisz listę posiadanych skinów
           if (skins) loadSkinImage(skinId);

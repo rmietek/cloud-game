@@ -120,7 +120,7 @@ const { MongoClient, ObjectId } = mongodb;
 
 
 
-const { packet_get, packet_set } = require('../shared/binary.js');
+const { packet_get, packet_set } = require('./shared/binary.js');
 /*
  * Własny moduł binarnego protokołu komunikacji z klientami gry.
  *

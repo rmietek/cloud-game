@@ -1,6 +1,6 @@
 # Mother Server — Serwer Lobby
 
-## 1. Cel i Architektura
+## 1. Cel i architektura
 
 Mother to serwer lobby — punkt wejścia dla każdego gracza. Odpowiada za logowanie i rejestrację kont, pokazanie listy dostępnych serwerów gry oraz przekazanie gracza do wybranego serwera. Działa jako Deployment Kubernetes z automatycznym skalowaniem od 1 do 10 replik (HPA). Wystawia dwa interfejsy sieciowe: serwer HTTP Express na porcie 9876 obsługujący REST API (logowanie, rejestracja, zakup skinów) i serwowanie plików statycznych gry, oraz serwer WebSocket oparty na uWebSockets.js na porcie 3001 obsługujący lobby w czasie rzeczywistym — odpowiada za wysyłanie listy dostępnych serwerów, obsługę dołączania gracza do wybranego serwera oraz aktualizacje liczby graczy na serwerach w czasie rzeczywistym.
 

@@ -9,7 +9,7 @@ Baza danych przechowuje konta graczy: dane uwierzytelniające, statystyki, zakup
 `connectDatabase()` jest wywoływana raz przy starcie serwera Mother. Nawiązuje połączenie, wskazuje bazę `gra` i kolekcję `users`, po czym tworzy indeks na polu `email`. Indeks spełnia dwie role: gwarantuje unikalność adresów email (próba rejestracji zduplikowanego emaila kończy się błędem MongoDB `E11000`) oraz przyspiesza logowanie — `findOne({ email })` działa w O(log n) zamiast O(n). Połączenie jest przechowywane globalnie w zmiennej `db_users` i reużywane przy każdym zapytaniu.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 615
+// apps/mother-lobby/main.js 
 async function connectDatabase() {
     const client = await MongoClient.connect(CONFIG.MONGO_URL);
     // MongoClient.connect() — statyczna metoda, łączy i zwraca klienta
@@ -75,7 +75,7 @@ $inc: { points: delta, total_points: delta }
 Klient wysyła `email` (pełniący rolę nazwy użytkownika) i `password`. Nick (`name`) jest generowany automatycznie przez serwer — gracz może go zmienić później. Hasło nigdy nie trafia do bazy — jest zastępowane hashem bcrypt jeszcze przed zapisem. Nowe konto dostaje od razu 10 000 000 punktów jako starter pack. Serwer zwraca `id` nowego konta — klient zapisuje je lokalnie i używa do identyfikacji w kolejnych requestach.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 737
+// apps/mother-lobby/main.js  
 const { email, password } = req.body;
 // z requestu pobieramy tylko login i hasło — nick serwer generuje sam
 
@@ -104,7 +104,7 @@ res.json({ id: result.insertedId.toString() });
 Serwer najpierw wyszukuje konto po nazwie użytkownika, a następnie porównuje podane hasło z hashem przechowywanym w bazie. Oba błędy — nieistniejący login i złe hasło — zwracają identyczny komunikat. Gdyby komunikaty się różniły, atakujący mógłby sprawdzać, które loginy są zarejestrowane. Po udanym logowaniu `last_login` jest aktualizowane w tle, bez czekania na wynik — gracz dostaje odpowiedź natychmiast.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 843
+// apps/mother-lobby/main.js  
 const user = await db_users.findOne({ email });
 // szuka konta po loginie — indeks na email sprawia, że działa w O(log n)
 
@@ -132,7 +132,7 @@ res.json({ id: user._id.toString() });
 Gdy gracz otwiera ekran profilu, serwer musi pobrać jego dane z bazy i jednocześnie zaktualizować datę ostatniego logowania. Zamiast wykonywać dwie osobne operacje (`findOne` + `updateOne`), używa `findOneAndUpdate` — jednej atomowej operacji, która robi obie rzeczy naraz. Opcja `returnDocument: 'after'` powoduje, że zwrócony dokument zawiera już nową datę logowania, więc klient od razu widzi aktualny stan konta.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 1357
+// apps/mother-lobby/main.js 
 db_users.findOneAndUpdate(
     { _id: accountId },                        // znajdź konto gracza
     { $currentDate: { last_login: true } },    // ustaw last_login na aktualny czas
@@ -151,7 +151,7 @@ Gdyby zakup był realizowany jako dwie osobne operacje — najpierw sprawdzenie 
 Jeśli gracz ma za mało punktów lub posiada już ten skin, MongoDB nie znajdzie pasującego dokumentu i nie wprowadzi żadnej zmiany. Klient nie otrzyma wtedy potwierdzenia zakupu.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 1393
+// apps/mother-lobby/main.js 
 db_users.findOneAndUpdate(
     {
         _id:    accountId,
@@ -175,7 +175,7 @@ db_users.findOneAndUpdate(
 Funkcja jest wywoływana przy śmierci gracza oraz przy rozłączeniu. Zamiast zapisywać całe saldo, zapisuje tylko deltę — różnicę między aktualnymi punktami a stanem z ostatniego zapisu. Gracze niezalogowani (goście) są pomijani — nie mają konta w bazie. Oba pola, `points` i `total_points`, są zwiększane o tę samą kwotę.
 
 ```javascript
-// apps/child-gameserver/main.js : linia 1454
+// apps/child-gameserver/main.js 
 function save_player_money(token_or_account, money) {
     if (money <= 0 || !db_users) return;
     // jeśli gracz nic nie zarobił lub baza jest niedostępna — pomiń
@@ -203,10 +203,10 @@ function save_player_money(token_or_account, money) {
 Funkcja jest wywoływana w dwóch miejscach. Za każdym razem jako drugi argument przekazywana jest różnica między aktualnym saldem gracza a stanem zapamiętanym przy ostatnim zapisie — czyli dokładnie tyle punktów, ile gracz zarobił od poprzedniego wywołania.
 
 ```javascript
-// przy śmierci gracza — linia 2846
+// przy śmierci gracza 
 save_player_money(this, this.points - this.account_points);
 
-// przy rozłączeniu — linia 4212
+// przy rozłączeniu 
 save_player_money(pl, pl.points - pl.account_points);
 ```
 
@@ -215,7 +215,7 @@ save_player_money(pl, pl.points - pl.account_points);
 Serwer weryfikuje wyłącznie długość nicku — maksymalnie 19 znaków. Zawartość nie jest w żaden sposób filtrowana. Po zapisaniu nowego nicku w bazie klient natychmiast otrzymuje zaktualizowane dane konta.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 1452
+// apps/mother-lobby/main.js
 if (!name || name.length >= 20) return;
 // odrzuć pustą nazwę lub dłuższą niż 19 znaków
 
@@ -238,7 +238,7 @@ db_users.findOneAndUpdate(
 Funkcja `send_account` jest wywoływana po każdej operacji, która zmienia dane konta — logowaniu, zakupie skina, zmianie nicku. Serializuje dokument użytkownika do binarnego pakietu i wysyła go przez WebSocket. Klient po odebraniu pakietu typu 1 odświeża wyświetlane dane konta.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 665
+// apps/mother-lobby/main.js 
 function send_account(ws, user) {
     ps.new_type(1);                                      // typ 1 = pakiet danych konta
     ps.s_string16(user.email);                           // login gracza

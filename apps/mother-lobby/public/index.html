@@ -971,12 +971,12 @@
     <div id="restart-overlay"></div><!-- Ciemne rozmyte tło -->
     <div id="restart-card">
       <img id="conf-gif" src="img/conf.gif"/><!-- Confetti jako dekoracyjne tło karty -->
-      <div class="cg-label">Congratulations</div>
-      <div style="color:rgba(255,255,255,0.48);font-size:13px;">You earned</div>
+      <div class="cg-label">Gratulacje</div>
+      <div style="color:rgba(255,255,255,0.48);font-size:13px;">Zdobyte złoto</div>
       <div id="win_points">1000 Gold!</div><!-- Aktualizowany przez case 12 z serwera gry -->
       <div id="bonus"></div><!-- Info o bonusie: zielone "+2500 dzięki bonusowi"  -->
-      <div id="timer">Respawn in<br><strong>1.0s</strong></div><!-- Odliczanie 1s — aktualizowane przez tick() -->
-      <button id="rebut">⟳ &nbsp; RESPAWN ON THIS LEVEL</button><!-- Pojawia się po odliczaniu -->
+      <div id="timer">Powrót do gry za<br><strong>1.0s</strong></div><!-- Odliczanie 1s — aktualizowane przez tick() -->
+      <button id="rebut">⟳ &nbsp; ZAGRAJ PONOWNIE NA TYM POZIOMIE</button><!-- Pojawia się po odliczaniu -->
     </div>
     <!-- Logo klikalne w prawym dolnym rogu ekranu śmierci -->
     <div style="position:fixed;bottom:16px;right:16px;z-index:90;">
@@ -2261,7 +2261,7 @@
 
     function tick() {
       cd--;
-      timerLabel.innerHTML = 'Respawn in<br><strong>' + (cd / 10).toFixed(1) + 's</strong>';
+      timerLabel.innerHTML = 'Powrót do gry za<br><strong>' + (cd / 10).toFixed(1) + 's</strong>';
       // (cd/10).toFixed(1): cd=9 → "0.9s", cd=5 → "0.5s", cd=1 → "0.1s"
       if (cd > 0) {
         setTimeout(tick, 100); // Kolejne 100ms → następny tick
@@ -3621,8 +3621,8 @@
           // ── Type 12: Zarobione złoto ──
           case 12: {
             const gold = p.g_uint32(); // uint32: może być duże (miliony punktów)
-            $('#win_points').innerText = gold + ' Gold!';
-            // Wyświetl na ekranie śmierci: "50000 Gold!"
+            $('#win_points').innerText = gold + ' Złota!';
+            // Wyświetl na ekranie śmierci: "50000 Złota!"
             break;
           }
 

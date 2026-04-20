@@ -87,7 +87,7 @@ variable "agones_port_range_end" {
 variable "github_org" {
   description = "Nazwa użytkownika lub organizacji GitHub (właściciel repozytorium)"
   type        = string
-  default     = "dw-droid"
+  default     = "rmietek"
 }
 
 variable "github_repo" {

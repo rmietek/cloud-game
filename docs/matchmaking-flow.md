@@ -284,7 +284,7 @@ apps/child-gameserver/main.js (game_id=3847291650)
 ## 6. Szczegółowy 9-krokowy Join Flow
 
 ```
-Klient WS       apps/mother-lobby/main.js               Redis               apps/child-gameserver/main.js
+Klient WS   apps/mother-lobby/main.js    Redis     apps/child-gameserver/main.js
     │               │                      │                     │
     │  KROK 1       │                      │                     │
     │──joinGame────►│                      │                     │

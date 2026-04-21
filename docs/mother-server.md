@@ -136,7 +136,7 @@ Redis wymaga dwóch osobnych połączeń, bo klient który wywołał `SUBSCRIBE`
 - `redisSub` — tylko do nasłuchiwania kanału `lobby_update`
 
 ```javascript
-// apps/mother-lobby/main.js : linia 435
+// apps/mother-lobby/main.js 
 async function connectRedis() {
     await redis.connect();
     await redisSub.connect();
@@ -390,7 +390,7 @@ close(ws)
 Wysyła aktualną listę gier do **wszystkich** klientów lobby.
 
 ```javascript
-// apps/mother-lobby/main.js : linia 1150
+// apps/mother-lobby/main.js 
 this.broadcast_games = async function () {
     const buf = await buildGamesPacket();
     self.app.publish('lobby', buf, true);

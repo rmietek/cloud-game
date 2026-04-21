@@ -318,12 +318,19 @@ Klient WS   apps/mother-lobby/main.js    Redis     apps/child-gameserver/main.js
 ```
 
 Krok 1 — Klient wysyła pakiet type 0 do Mother z wyborem serwera.
+
 Krok 2 — Mother weryfikuje czy serwer istnieje i ma wolne miejsca (`hGetAll` + porównanie `g_players_len < g_players_lim`).
+
 Krok 3 — Mother generuje losowy `token = gen_id()` (uint32).
+
 Krok 4-5 — Mother publikuje token do Redis; Child odbiera przez callback subskrypcji i zapamiętuje w `tokens{}`.
+
 Krok 6 — Po 50ms (bufor na latencję Redis) Mother odsyła klientowi `{token, port, ip}`.
+
 Krok 7 — Klient otwiera nowe połączenie WebSocket bezpośrednio z Child: `ws://ip:port/TOKEN`.
+
 Krok 8 — Child weryfikuje token w `upgrade()`: `have_token(token) → true` → akceptuj, `false` → HTTP 401.
+
 Krok 9 — Child tworzy gracza, token zostaje zniszczony (`null + delete`).
 
 ---

@@ -15,7 +15,11 @@
 
 ---
 
+<div align="center">
+
 ### 🟢 **[ZAGRAJ TERAZ W PRZEGLĄDARCE: http://20.215.181.95/](http://20.215.181.95/)**
+
+</div>
 
 ---
 

@@ -11,7 +11,7 @@ const uWS      = require('uWebSockets.js');
  * Klient łączy się przez WebSocket do lobby (ten serwer), a NIE bezpośrednio do serwera gry.
  *
  * Flow połączenia:
- *   Przeglądarka ──WebSocket──► Mother (ten plik) ──Redis pub/sub──► Serwer gry (child.js)
+ *   Przeglądarka ──WebSocket──► Mother (ten plik) ──Redis pub/sub──► Serwer gry (apps/child-gameserver/main.js)
  *
  * uWS jest wielokrotnie szybszy od standardowego modułu 'ws' — ważne gdy lobby
  * obsługuje setki jednoczesnych graczy przeglądających listę serwerów.
@@ -91,15 +91,15 @@ const { createClient } = require('redis');
  *
  * W tej architekturze Redis pełni rolę "magistrali komunikacyjnej":
  *
- *   DANE SERWERÓW GRY (zapisywane przez child.js):
+ *   DANE SERWERÓW GRY (zapisywane przez apps/child-gameserver/main.js):
  *     game:{id} → HASH { g_port, g_players_len, g_players_lim, serv_ip, serv_loc, serv_name }
  *     game_ids  → SET  { id1, id2, id3, ... }  ← lista aktywnych gier
  *
  *   PUB/SUB KANAŁY:
- *     'lobby_update'    → child.js publikuje gdy zmienia się liczba graczy / nowa gra / gra znika
- *                         mother.js subskrybuje i rozsyła aktualizację do klientów za pomocą WebSocket
- *     'join:{game_id}'  → mother.js publikuje token gracza
- *                         child.js subskrybuje i dodaje gracza do gry
+ *     'lobby_update'    → apps/child-gameserver/main.js publikuje gdy zmienia się liczba graczy / nowa gra / gra znika
+ *                         apps/mother-lobby/main.js subskrybuje i rozsyła aktualizację do klientów za pomocą WebSocket
+ *     'join:{game_id}'  → apps/mother-lobby/main.js publikuje token gracza
+ *                         apps/child-gameserver/main.js subskrybuje i dodaje gracza do gry
  *
  * Dlaczego Redis zamiast bezpośredniej komunikacji HTTP między serwerami?
  *   Luźne powiązanie: mother nie musi znać adresów IP child serwerów.
@@ -449,8 +449,8 @@ async function connectRedis() {
          * Subskrybuj kanał 'lobby_update'.
          *
          * KTO publikuje na ten kanał?
-         *   child.js (serwer gry) publikuje '1' gdy:
-         *     - Nowy serwer się rejestruje (connectRedis w child.js)
+         *   apps/child-gameserver/main.js (serwer gry) publikuje '1' gdy:
+         *     - Nowy serwer się rejestruje (connectRedis w apps/child-gameserver/main.js)
          *     - Zmienia się liczba graczy (redis_update_player_count co ~1s)
          *     - Serwer znika (redis_cleanup przy SIGTERM)
          *
@@ -494,7 +494,7 @@ async function connectRedis() {
 /**
  * Pobiera z Redis listę wszystkich aktywnych serwerów gier i buduje binarny pakiet.
  *
- * Format danych w Redis (zapisywany przez child.js):
+ * Format danych w Redis (zapisywany przez apps/child-gameserver/main.js):
  *   game_ids        → SET  z ID wszystkich aktywnych gier
  *   game:{id}       → HASH z polami:
  *     g_port        — port WebSocket serwera gry
@@ -507,7 +507,7 @@ async function connectRedis() {
  * @returns {Promise<Buffer>}  Gotowy bufor binarny do wysłania przez ws.send()
  */
 // Czyta wszystkie gry z Redis i buduje binarny pakiet dla klientów.
-//   (zapisywana przez child.js):
+//   (zapisywana przez apps/child-gameserver/main.js):
 //   game:{id}  → HASH { g_port, g_players_len, g_players_lim, serv_ip, serv_loc }
 //   game_ids   → SET  { id, id, ... }
 async function buildGamesPacket() {
@@ -520,7 +520,7 @@ async function buildGamesPacket() {
      * Dlaczego Set a nie np. KEYS 'game:*'?
      *   KEYS skanuje całą bazę Redis — wolne przy dużej liczbie kluczy.
      *   Set z SMEMBERS = O(n) gdzie n = liczba aktywnych gier (zwykle < 100).
-     *   Set jest też "self-cleaning" — child.js usuwa swoje ID przy zamknięciu.
+     *   Set jest też "self-cleaning" — apps/child-gameserver/main.js usuwa swoje ID przy zamknięciu.
      */
 
 
@@ -570,7 +570,7 @@ async function buildGamesPacket() {
     for (const g of games) {
         lps.s_uint32(g.id);
         // ID gry (uint32) — używane przez klienta w pakiecie "dołącz" (handleJoinGame).
-        // Klient wysyła ten ID i mother wie do którego child.js wysłać token.
+        // Klient wysyła ten ID i mother wie do którego apps/child-gameserver/main.js wysłać token.
 
 
         lps.s_uint8(parseInt(g.g_players_len) || 0);
@@ -590,7 +590,7 @@ async function buildGamesPacket() {
         lps.s_string(g.serv_name || g.serv_loc || 'Server');
         // Czytelna nazwa (np. "EU-Phantom").
         // Fallback: jeśli brak nazwy → użyj regionu → ostatecznie "Server".
-        // Starsze wersje child.js mogły nie zapisywać serv_name.
+        // Starsze wersje apps/child-gameserver/main.js mogły nie zapisywać serv_name.
 
     }
     return Buffer.from(lps.get_buf());
@@ -1000,7 +1000,7 @@ function ClientManager(port) {
              * Tu NIE walidujemy tokenów — lobby jest otwarte dla wszystkich.
              * Każdy może się podłączyć do listy serwerów gier.
              *
-             * W child.js (serwer gry) upgrade() sprawdza token — tam dostęp jest ograniczony.
+             * W apps/child-gameserver/main.js (serwer gry) upgrade() sprawdza token — tam dostęp jest ograniczony.
              * Tu: brak autoryzacji = uproszczenie (lobby jest publiczne).
              */
             res.upgrade(
@@ -1145,7 +1145,7 @@ function ClientManager(port) {
 
     /**
      * Wysyła aktualną listę gier do WSZYSTKICH podłączonych klientów lobby.
-     * Wywoływana automatycznie gdy Redis dostaje 'lobby_update' (z child.js).
+     * Wywoływana automatycznie gdy Redis dostaje 'lobby_update' (z apps/child-gameserver/main.js).
      */
     this.broadcast_games = async function () {
         const buf = await buildGamesPacket();
@@ -1176,12 +1176,12 @@ function ClientManager(port) {
 
     /**
      * Obsługuje prośbę gracza o dołączenie do serwera gry.
-     * Generuje jednorazowy token i publikuje go przez Redis do child.js.
+     * Generuje jednorazowy token i publikuje go przez Redis do apps/child-gameserver/main.js.
      *
      * Flow:
      *   1. Odczytaj: gameId, name, skinId, accountId z pakietu
      *   2. Sprawdź czy gracz ma prawo do wybranego skina
-     *   3. Wygeneruj token i wyślij przez Redis do child.js
+     *   3. Wygeneruj token i wyślij przez Redis do apps/child-gameserver/main.js
      *   4. Wyślij token + dane połączenia (IP, port) do klienta
      */
     function handleJoinGame(p, ws) {
@@ -1242,7 +1242,7 @@ function ClientManager(port) {
             /*
              * Generuj jednorazowy token = losowy uint32.
              * Token to "klucz" który gracz poda serwerowi gry przy połączeniu.
-             * Serwer gry (child.js) sprawdza: have_token(token) → true → pozwól dołączyć.
+             * Serwer gry (apps/child-gameserver/main.js) sprawdza: have_token(token) → true → pozwól dołączyć.
              */
 
             await redis.publish(`join:${gameId}`, JSON.stringify({
@@ -1255,7 +1255,7 @@ function ClientManager(port) {
              * Wyślij token przez Redis do serwera gry.
              *
              * Kanał: 'join:<gameId>' — każdy serwer gry subskrybuje SWÓJ kanał.
-             * child.js robi: redis_sub.subscribe(`join:${game_id}`, handler)
+             * apps/child-gameserver/main.js robi: redis_sub.subscribe(`join:${game_id}`, handler)
              *
              * JSON.stringify() bo Redis pub/sub przesyła strings, nie obiekty.
              *
@@ -1267,7 +1267,7 @@ function ClientManager(port) {
              *
              * accountId.toString(): konwertuje ObjectId z powrotem na string
              * (JSON nie obsługuje binarnych typów MongoDB).
-             * '' dla gości — child.js nie zapisze punktów do bazy jeśli account = ''.
+             * '' dla gości — apps/child-gameserver/main.js nie zapisze punktów do bazy jeśli account = ''.
              */
 
             ps.new_type(0);
@@ -1295,17 +1295,17 @@ function ClientManager(port) {
              * Wyślij token do klienta z 50ms OPÓŹNIENIEM.
              *
              * Dlaczego 50ms?
-             *   1. redis.publish() jest async — wiadomość musi dojść do child.js
-             *   2. child.js musi przetworzyć wiadomość i dodać token do tokens{}
+             *   1. redis.publish() jest async — wiadomość musi dojść do apps/child-gameserver/main.js
+             *   2. apps/child-gameserver/main.js musi przetworzyć wiadomość i dodać token do tokens{}
              *   3. Dopiero wtedy klient może się połączyć z serwerem gry
              *
              *   Bez opóźnienia:
              *     Klient dostaje IP:port:token prawie jednocześnie z redis.publish()
-             *     Klient łączy się ZANIM child.js zdążył przetworzyć token
-             *     child.js: have_token(token) = false → odrzuca połączenie! (401)
+             *     Klient łączy się ZANIM apps/child-gameserver/main.js zdążył przetworzyć token
+             *     apps/child-gameserver/main.js: have_token(token) = false → odrzuca połączenie! (401)
              *
              *   50ms to zazwyczaj więcej niż wystarczy (Redis pub/sub latency ~1-5ms,
-             *   przetwarzanie w child.js ~1ms). Bufor dla wolnych sieci.
+             *   przetwarzanie w apps/child-gameserver/main.js ~1ms). Bufor dla wolnych sieci.
              *
              *   try/catch: klient mógł się rozłączyć w ciągu tych 50ms → ignorujemy błąd.
              */
@@ -1510,7 +1510,7 @@ function ClientManager(port) {
             );
             /*
              * Serwer działa → pobierz aktualne dane konta.
-             * Przy reconnect gracz mógł być offline długo → punkty z ostatniej gry zapisane przez child.js.
+             * Przy reconnect gracz mógł być offline długo → punkty z ostatniej gry zapisane przez apps/child-gameserver/main.js.
              * Wysyłamy świeże dane (z zaktualizowanymi punktami) żeby UI było aktualne.
              */
         }).then(function (result) {

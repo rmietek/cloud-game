@@ -623,7 +623,7 @@ Błędy dzielą się na dwie kategorie: krytyczne (przy starcie) i nieblokujące
 | `lobby_update` | Child → Mother | Powiadom o zmianie listy gier (nowy serwer, zmiana graczy, zamknięcie) |
 | `join:{game_id}` | Mother → Child | Prześlij token gracza do konkretnego serwera |
 
-### Redis — struktura danych (zapisywana przez child.js)
+### Redis — struktura danych (zapisywana przez apps/child-gameserver/main.js)
 
 | Klucz | Typ | Zawartość |
 |---|---|---|

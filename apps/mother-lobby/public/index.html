@@ -1557,7 +1557,7 @@
   /**
    * Konwertuje skompresowaną wartość punktów (byte 0–255) na czytelny string.
    *
-   * Ten sam algorytm co to_bignum_byte() w child.js ale odwrotny kierunek:
+   * Ten sam algorytm co to_bignum_byte() w apps/child-gameserver/main.js ale odwrotny kierunek:
    *   byte → string (np. 150 → "600 K")
    *
    * Zakresy (odwrócone z kompresji):
@@ -1583,7 +1583,7 @@
   // ══════════════════════════════════════════════════════════════════
 
   const MOTHER_PORT = 3001;
-  // Port serwera lobby (mother.js) — WebSocket na tym porcie obsługuje:
+  // Port serwera lobby (apps/mother-lobby/main.js) — WebSocket na tym porcie obsługuje:
   //   listę gier, konta, tokeny, skiny, czat lobby.
 
   // Kody krajów do automatycznego wyboru serwera regionalnego.
@@ -1987,7 +1987,7 @@
       $('#r_name_che').style.display = 'none';
       $('#r_name').style.display     = 'inline';
       const id = localStorage.getItem('id');
-      packetSender.new_type(3); // Type 3 = zmiana nazwy (handleChangeName w mother.js)
+      packetSender.new_type(3); // Type 3 = zmiana nazwy (handleChangeName w apps/mother-lobby/main.js)
       packetSender.s_string($('#r_name_che').value.length ? id : '');
       // Jeśli pole ma wartość → wyślij ID konta, inaczej pusty string (brak aktualizacji)
       packetSender.s_string16($('#r_name_che').value);
@@ -2092,7 +2092,7 @@
       document.getElementById('auth-msg').innerText     = 'Zaloguj się, aby kupić skórkę.';
     } else {
       // Zalogowany → wyślij pakiet zakupu skina do Mother Servera
-      packetSender.new_type(2); // Type 2 = handleBuySkin w mother.js
+      packetSender.new_type(2); // Type 2 = handleBuySkin w apps/mother-lobby/main.js
       packetSender.s_string(id);
       packetSender.s_uint8(skinId);
       motherSocket.send(packetSender.get_buf());
@@ -2147,12 +2147,12 @@
       waitingForAuth = false;
       if (!gameToken) {
         // Tryb lobby — pobierz dane konta
-        packetSender.new_type(1); // Type 1 = handleFetchAccount w mother.js
+        packetSender.new_type(1); // Type 1 = handleFetchAccount w apps/mother-lobby/main.js
         packetSender.s_string(id);
         motherSocket.send(packetSender.get_buf());
       } else {
         // Tryb reconnect — wróć do trwającej gry
-        packetSender.new_type(5); // Type 5 = handleReconnect w mother.js
+        packetSender.new_type(5); // Type 5 = handleReconnect w apps/mother-lobby/main.js
         packetSender.s_int32(selectedGame.g_id);
         packetSender.s_int32(gameToken);
         packetSender.s_string(id);
@@ -2229,7 +2229,7 @@
     respawnButton.onclick = function () {
       gameSocket.send(new Uint8Array([8, canShowAd, skinId]).buffer);
       // Pakiet: [8] = typ (respawn), [canShowAd] = 0/1 (bonus reklamowy), [skinId] = wybrany skin
-      // Serwer gry (child.js) case 8: odradza gracza z punktami + ewentualnym bonusem
+      // Serwer gry (apps/child-gameserver/main.js) case 8: odradza gracza z punktami + ewentualnym bonusem
 
       // Przywróć HUD
       ['#eventb', '#level', '#ranking', '#chat'].forEach(sel => { $(sel).style.display = 'block'; });
@@ -2276,7 +2276,7 @@
   // ══════════════════════════════════════════════════════════════════
   //  POŁĄCZENIE Z MOTHER SERVEREM (WebSocket lobby)
   //
-  //  Mother Server (mother.js) zarządza:
+  //  Mother Server (apps/mother-lobby/main.js) zarządza:
   //    - Listą dostępnych serwerów gier (Redis → lista gier)
   //    - Kontami graczy (MongoDB)
   //    - Tokenami dołączenia do gry (Redis pub/sub)
@@ -2337,7 +2337,7 @@
       localStorage.setItem('skin_id', skinId);
       // Zapamiętaj wybrany skin — wróci po odświeżeniu strony lub reconnekcie
 
-      // Buduj pakiet type 0 (handleJoinGame w mother.js)
+      // Buduj pakiet type 0 (handleJoinGame w apps/mother-lobby/main.js)
       packetSender.new_type(0);
       packetSender.s_uint32(selectedGame.g_id);  // ID wybranego serwera gry
       packetSender.s_string16(playerNick);         // nick gracza (UTF-16, do 9 znaków)
@@ -2432,7 +2432,7 @@
 
           for (let a = p.g_length8(); a--;) {
             games.push({
-              g_id:          p.g_uint32(), // unikalny ID gry (game_id z child.js)
+              g_id:          p.g_uint32(), // unikalny ID gry (game_id z apps/child-gameserver/main.js)
               g_players_len: p.g_uint8(),  // aktualna liczba graczy
               g_players_lim: p.g_uint8(),  // limit graczy (np. 15)
               g_location:    p.g_string(), // kod regionu: "EU", "US"
@@ -2464,8 +2464,8 @@
 
         // ── Type 3: Ceny skinów + kolory neonowe ──
         case 3: {
-          skins      = p.g_int32_arr(); // tablica 23 cen (SKIN_COSTS z mother.js)
-          lightSkins = p.g_int32_arr(); // tablica 23 kolorów (SKIN_LIGHTS z mother.js)
+          skins      = p.g_int32_arr(); // tablica 23 cen (SKIN_COSTS z apps/mother-lobby/main.js)
+          lightSkins = p.g_int32_arr(); // tablica 23 kolorów (SKIN_LIGHTS z apps/mother-lobby/main.js)
 
           const sv = localStorage.getItem('skin_id') | 0;
           // | 0: parseInt + fallback na 0 jeśli null (localStorage.getItem zwraca null gdy brak)
@@ -2736,7 +2736,7 @@
       if (!n) n = a.length; this._wah(n);
       for (let i = n; i--;) this.s_uint32(a[i]);
     };
-    // Używane przy wysyłaniu SKIN_COSTS i SKIN_LIGHTS z mother.js
+    // Używane przy wysyłaniu SKIN_COSTS i SKIN_LIGHTS z apps/mother-lobby/main.js
 
     this.s_string_arr = function (a, n) {
       this._wah(n);
@@ -2824,7 +2824,7 @@
      *      2 = niebezpieczna platforma (czerwona, odbiera event/zabija)
      *
      *  SKĄD DANE?
-     *    Serwer gry (child.js) wysyła pakiet type 4 przy połączeniu i co jakiś czas.
+     *    Serwer gry (apps/child-gameserver/main.js) wysyła pakiet type 4 przy połączeniu i co jakiś czas.
      *    Każdy pakiet type 4 zawiera 10 poziomów naraz.
      *    Dane są buforowane w levels[] i ładowane do ringów przez loadRing().
      */
@@ -3301,7 +3301,7 @@
 
     /*
      * ══════════════════════════════════════════════════════════════
-     *  PAKIETY WYSYŁANE DO SERWERA GRY (child.js)
+     *  PAKIETY WYSYŁANE DO SERWERA GRY (apps/child-gameserver/main.js)
      * ══════════════════════════════════════════════════════════════
      *
      *  [0, v]              — ruch poziomy gracza
@@ -3324,7 +3324,7 @@
      *                         Handler: showRespawnMenu() → gs.send(new Uint8Array([8, ...]).buffer)
      *
      * ══════════════════════════════════════════════════════════════
-     *  PAKIETY WYSYŁANE DO MOTHER SERVERA (mother.js) — PacketSet
+     *  PAKIETY WYSYŁANE DO MOTHER SERVERA (apps/mother-lobby/main.js) — PacketSet
      * ══════════════════════════════════════════════════════════════
      *
      *  Type 1 + string(id)             — fetchAccount (pobranie danych konta)
@@ -3345,7 +3345,7 @@
      * ══════════════════════════════════════════════════════════════
      */
 
-    // Przycisk eventu wysyła pakiet [2] = case 2 w child.js (użycie eventu)
+    // Przycisk eventu wysyła pakiet [2] = case 2 w apps/child-gameserver/main.js (użycie eventu)
     $('#eventb').onclick = function () { gs.send(new Uint8Array([2]).buffer); };
 
     gs.onopen = function () {
@@ -3497,10 +3497,10 @@
 
           // ── Type 4: Dane poziomów mapy (chunk 10 ringów) ──
           //
-          // Wysyłany przez child.js:
+          // Wysyłany przez apps/child-gameserver/main.js:
           //   a) przy połączeniu (pierwsze 10 poziomów — poziomy 0–9)
           //   b) proaktywnie gdy gracz zbliża się do końca znanych danych
-          //      (child.js śledzi postęp i dosyła kolejne chunki z wyprzedzeniem)
+          //      (apps/child-gameserver/main.js śledzi postęp i dosyła kolejne chunki z wyprzedzeniem)
           //
           // Format pakietu type 4:
           //   [count: 1B] × count:
@@ -3780,7 +3780,7 @@
     function updCyl(cylMesh) {
       const seg = (Math.sqrt(ringGroupIndex / 10)) | 0;
       // Oblicz aktualny segment: Math.sqrt(index/10) | 0
-      // Analogiczna logika jak respawn_lvl w child.js.
+      // Analogiczna logika jak respawn_lvl w apps/child-gameserver/main.js.
 
       if (cylinderSegment !== seg) {
         cylinderSegment = seg; // Zaktualizuj bieżący segment
@@ -4094,7 +4094,7 @@
 
           // Oblicz aktualny poziom mapy
           const cl = (((Math.abs((y - 8) >> 4)) / 8) | 0);
-          // Ta sama formuła co w child.js:
+          // Ta sama formuła co w apps/child-gameserver/main.js:
           //   (y - 8) >> 4 = (y-8)/16 = rząd warstwy
           //   Math.abs: Y może być ujemny (wyżej w cylindrze)
           //   / 8 | 0: indeks poziomu (segment = co 8 warstw)
@@ -4215,12 +4215,12 @@
     $('#sendtext').onkeydown = function (e) {
       if (e.keyCode === 13 && this.value.length) {
         // Enter + niepuste pole → wyślij wiadomość
-        // Pakiet czatu do child.js: [0x01, len_hi, len_lo, char0_hi, char0_lo, ...]
-        //   Bajt 0: typ = 1 (wiadomość czatu) — case 1 w child.js handleClientMessage()
+        // Pakiet czatu do apps/child-gameserver/main.js: [0x01, len_hi, len_lo, char0_hi, char0_lo, ...]
+        //   Bajt 0: typ = 1 (wiadomość czatu) — case 1 w apps/child-gameserver/main.js handleClientMessage()
         //   Następnie: s_string16() → uint16 długość + bajty UTF-16 (2B na znak)
-        //   child.js rozsyła wiadomość do wszystkich graczy w pokoju jako pakiet type 8
+        //   apps/child-gameserver/main.js rozsyła wiadomość do wszystkich graczy w pokoju jako pakiet type 8
         packetSender.index--;   // Cofnij wskaźnik (usuń poprzedni typ — reużyj bufor)
-        packetSender.s_uint8(1); // Typ 1 = wiadomość czatu (case 1 w child.js)
+        packetSender.s_uint8(1); // Typ 1 = wiadomość czatu (case 1 w apps/child-gameserver/main.js)
         packetSender.s_string16(this.value); // Tekst wiadomości (UTF-16)
         gs.send(packetSender.get_buf());
         this.value = ''; // Wyczyść pole po wysłaniu
@@ -4238,7 +4238,7 @@
      * Klampuje wartość do zakresu ±127 (Int8).
      *
      * Pakiet: [0x00, v]
-     *   Bajt 0: typ = 0 (ruch poziomy) — case 0 w child.js handleClientMessage()
+     *   Bajt 0: typ = 0 (ruch poziomy) — case 0 w apps/child-gameserver/main.js handleClientMessage()
      *   Bajt 1: prędkość Int8 (−127..+127)
      *     < 0 = ruch w lewo (obrót kątowy w tył)
      *     > 0 = ruch w prawo (obrót kątowy w przód)
@@ -4270,7 +4270,7 @@
     //    7. Pulsuj kolory materiałów (emissive: platformy, ściany, podłoga)
     //    8. renderer.render(scene, camera)  — narysuj klatkę WebGL
     //
-    //  UWAGA: pętla gry (fizyka, kolizje) jest po STRONIE SERWERA (child.js, tick co 16ms).
+    //  UWAGA: pętla gry (fizyka, kolizje) jest po STRONIE SERWERA (apps/child-gameserver/main.js, tick co 16ms).
     //  Klient tylko interpoluje + renderuje pozycje przesyłane przez pakiety type 0.
     // ═══════════════════════════════════════════════════════════
 
@@ -4426,19 +4426,19 @@
 
   [1.1] connectToMother() tworzy WebSocket:
           motherSocket = new WebSocket("ws://IP:3001")
-        Przegladarka nawiazuje polaczenie TCP z mother.js (port 3001).
+        Przegladarka nawiazuje polaczenie TCP z apps/mother-lobby/main.js (port 3001).
 
   [1.2] motherSocket.onopen → isConnected = true, startuje pollAuth() co 100ms.
 
   [1.3] pollAuth() (co 100ms) czeka az:
         - motherSocket.readyState === WebSocket.OPEN
         - localStorage ma zapisane userId (gracz byl wczesniej zalogowany)
-        Gdy oba warunki spelnione → wysyla pakiet do mother.js:
+        Gdy oba warunki spelnione → wysyla pakiet do apps/mother-lobby/main.js:
           [Type 1, userId_string] → handleFetchAccount (pobierz dane konta)
         Jesli gracz mial aktywny token gry → wysyla:
           [Type 5, g_id, token, userId_string] → handleReconnect
 
-  [1.4] co 500ms setInterval wysyla [Type 6] (pollGames) do mother.js.
+  [1.4] co 500ms setInterval wysyla [Type 6] (pollGames) do apps/mother-lobby/main.js.
         Odpowiedz (Type 2) → odswieza liste serwerow gry w lobby.
 
   [1.5] Gracz widzi lobby: lista serwerow po prawej, formularz logowania po lewej.
@@ -4450,13 +4450,13 @@
   [2.1] Gracz wpisuje email + haslo → klika ZALOGUJ.
         JS wysyla: fetch("http://IP:9876/auth/login", { POST, JSON: {email, password} })
 
-  [2.2] mother.js (Express, port 9876) weryfikuje haslo bcrypt.compare().
+  [2.2] apps/mother-lobby/main.js (Express, port 9876) weryfikuje haslo bcrypt.compare().
         Odpowiedz: { success: true, _id, nick }
         JS zapisuje _id do localStorage jako "id".
 
   [2.3] pollAuth() wykrywa userId → wysyla [Type 1, userId] przez WebSocket.
 
-  [2.4] mother.js odpowiada [Type 3, email, nick, punkty, skiny[]] przez WebSocket.
+  [2.4] apps/mother-lobby/main.js odpowiada [Type 3, email, nick, punkty, skiny[]] przez WebSocket.
         handleMotherMessage case 3 → wypelnia panel konta.
 
 
@@ -4464,13 +4464,13 @@
   ─────────────────────────────────────
 
   [3.1] Gracz klika serwer → handleJoinGame() wysyla [Type 0, g_id, nick, userId]
-        do mother.js przez WebSocket.
+        do apps/mother-lobby/main.js przez WebSocket.
 
-  [3.2] mother.js (handleJoinGame):
+  [3.2] apps/mother-lobby/main.js (handleJoinGame):
         a) Generuje jednorazowy token.
-        b) Publikuje token przez Redis PUBLISH do child.js (serwer gry).
-           child.js subskrybuje kanal i rejestruje token w pamieci.
-        c) Czeka 50ms zeby child.js zdazyl zarejestrowac.
+        b) Publikuje token przez Redis PUBLISH do apps/child-gameserver/main.js (serwer gry).
+           apps/child-gameserver/main.js subskrybuje kanal i rejestruje token w pamieci.
+        c) Czeka 50ms zeby apps/child-gameserver/main.js zdazyl zarejestrowac.
         d) Odsyla klientowi [Type 0, token_int32, port_int16, ip_string].
 
   [3.3] handleMotherMessage case 0:
@@ -4608,7 +4608,7 @@
   FAZA 6 - PIERWSZE PAKIETY OD SERWERA GRY
   ──────────────────────────────────────────
 
-  [6.1] Serwer gry (child.js) po weryfikacji tokenu wysyla natychmiast:
+  [6.1] Serwer gry (apps/child-gameserver/main.js) po weryfikacji tokenu wysyla natychmiast:
 
         PAKIET TYPE 3 — inicjalizacja:
           [3, myPlayerId, count, id, nick, skin, id, nick, skin, ...]
@@ -4644,7 +4644,7 @@
 
         PAKIET TYPE 9 — ranking TOP 6: wypelnia #ranking.
 
-  [6.2] Child.js co ~16ms (tick) wysyla PAKIET TYPE 0 (pozycje graczy):
+  [6.2] apps/child-gameserver/main.js co ~16ms (tick) wysyla PAKIET TYPE 0 (pozycje graczy):
           [0, count, id, x_float, y_float, event_int8, ...]
           hgm case 0:
             - players[id].obj.visible = true → gracz staje sie widoczny
@@ -4707,7 +4707,7 @@
   FAZA 8 - SCROLLOWANIE CYLINDRA (wywolywane z set_pos kazdego pakietu type 0)
   ──────────────────────────────────────────────────────────────────────────────
 
-  [8.1] Pakiet type 0 od child.js → hgm case 0 → Player.set_pos(x, y):
+  [8.1] Pakiet type 0 od apps/child-gameserver/main.js → hgm case 0 → Player.set_pos(x, y):
           ang = (x * 2π) / 1023    → konwertuj pozycje katowa (0-1023) na radiany
           obj.position.set(R*sin(ang), y, R*cos(ang))
           → gracz lepi sie do wewnetrznej sciany cylindra na promieniu R
@@ -4744,7 +4744,7 @@
   FAZA 9 - SMIERC GRACZA I RESPAWN
   ─────────────────────────────────
 
-  [9.1] child.js wykrywa smierc → PAKIET TYPE 5:
+  [9.1] apps/child-gameserver/main.js wykrywa smierc → PAKIET TYPE 5:
           hgm case 5: players[id].obj.visible = false
           Jezeli to myPlayer → showRespawnMenu(gs, resetRings)
 
@@ -4756,13 +4756,13 @@
 
   [9.3] Gracz klika RESPAWN:
           gs.send(new Uint8Array([8, canShowAd, skinId]).buffer)
-          → Pakiet [8] do child.js → serwer teleportuje gracza na start
+          → Pakiet [8] do apps/child-gameserver/main.js → serwer teleportuje gracza na start
           onRespawn() = resetRings():
             cyl[0].y=0, cyl[1].y=-512 (cylindry wracaja na poczatek)
             loadRing(ringGroups[i], i) dla i=0..4 (pierwsze 5 poziomow z powrotem)
             ringGroupIndex = 5 (nastepny advCyl zaladuje poziom 5)
 
-  [9.4] child.js wysyla type 0 z nowa pozycja startowa → set_pos() → obj.visible = true
+  [9.4] apps/child-gameserver/main.js wysyla type 0 z nowa pozycja startowa → set_pos() → obj.visible = true
 
 
   FAZA 10 - INNE ZDARZENIA PODCZAS GRY
@@ -4804,16 +4804,16 @@
   PODSUMOWANIE ZALEZNOSCI
   ───────────────────────
 
-    HTTP POST /auth/login        → mother.js (Express port 9876)
-    WebSocket ws://IP:3001       → mother.js (uWS port 3001)
+    HTTP POST /auth/login        → apps/mother-lobby/main.js (Express port 9876)
+    WebSocket ws://IP:3001       → apps/mother-lobby/main.js (uWS port 3001)
       pakiety lobby: Type 0 (join), 1 (account), 2 (buy), 3 (resp), 5 (reconnect), 6 (poll)
-    WebSocket ws://IP:PORT/token → child.js  (uWS port przydzielony)
+    WebSocket ws://IP:PORT/token → apps/child-gameserver/main.js  (uWS port przydzielony)
       pakiety gry:   Type 0 (pozycje), 1 (join), 2 (left), 3 (init), 4 (mapa),
                             5 (smierc), 7 (ukryj), 8 (czat), 9 (rank), 10 (rank2),
                             11 (event), 12 (zloto), 13 (skin)
     requestAnimationFrame        → petla animate() ~60Hz
-    pakiety Type 0 od child.js   → set_pos() → scrollCyl() → advCyl() → loadRing()
-    pakiety Type 4 od child.js   → levels[] → loadRing() (gdy ringi gotowe)
+    pakiety Type 0 od apps/child-gameserver/main.js   → set_pos() → scrollCyl() → advCyl() → loadRing()
+    pakiety Type 4 od apps/child-gameserver/main.js   → levels[] → loadRing() (gdy ringi gotowe)
 
 ============================================================================== -->
 <!--
@@ -4828,10 +4828,10 @@
 ================================================================================
 
 
-  1. WEJSCIE DO LANCUCHA — PAKIET TYPE 0 OD CHILD.JS
+  1. WEJSCIE DO LANCUCHA — PAKIET TYPE 0 OD apps/child-gameserver/main.js
   ────────────────────────────────────────────────────
 
-  Child.js wysyla pakiet type 0 CO TICK (~60 razy na sekunde, tick co 16ms).
+  apps/child-gameserver/main.js wysyla pakiet type 0 CO TICK (~60 razy na sekunde, tick co 16ms).
   Wysyla go do KAZDEGO klienta w pokoju — zawiera pozycje graczy widocznych
   w zasiegu tego klienta (nie wszystkich na serwerze, tylko "widocznych").
 
@@ -5139,10 +5139,10 @@
   ───────────────────────────────────────────────────────
 
   KLIENT NIGDY NIE PROSI serwera o dane poziomow.
-  Child.js wysyla je PROAKTYWNIE — sam sledzi postep gracza i dosyla z wyprzedzeniem.
+  apps/child-gameserver/main.js wysyla je PROAKTYWNIE — sam sledzi postep gracza i dosyla z wyprzedzeniem.
 
-  Mechanizm po stronie child.js (nie w tym pliku tylko w child.js):
-    child.js trzyma: player.last_sent_level = ostatni poziom wyslany do tego klienta
+  Mechanizm po stronie apps/child-gameserver/main.js (nie w tym pliku tylko w apps/child-gameserver/main.js):
+    apps/child-gameserver/main.js trzyma: player.last_sent_level = ostatni poziom wyslany do tego klienta
     W kazdym ticku sprawdza: czy gracz zblizy sie do konca znanych danych?
       Warunek (przyblizony): current_level > last_sent_level - BUFFER_SIZE
       Jesli TAK: wysyla kolejny chunk 10 poziomow
@@ -5184,7 +5184,7 @@
 
   Zakladamy: gracz wlasnie dolaczyl, ringGroupIndex=5, levelsReceived=10, gracz na y=0.
 
-  t=0ms:  Child.js wysyla pakiet type 0:
+  t=0ms:  apps/child-gameserver/main.js wysyla pakiet type 0:
             [01][00][01][00][00 00 00 00][00 00 00 00][00]
              1  t=0  1  id=0  x=0.0        y=0.0       ev=0
           hgm: set_pos(0, 0)
@@ -5219,11 +5219,11 @@
             advCyl() probuje: levels[9] → OK
             ale gdy ringGroupIndex=10 → levels[10] = undefined!
             loadRing dostanie levels[10] = undefined → tile types beda NaN → bugi
-            ALE: child.js powinien wyslac pakiet type 4 z poziomami 10-19
+            ALE: apps/child-gameserver/main.js powinien wyslac pakiet type 4 z poziomami 10-19
                  ZANIM gracz dotrze do ringGroupIndex=10.
-            Bufor: child.js wysyla nowe dane gdy gracz jest na ~polowie znanych danych.
+            Bufor: apps/child-gameserver/main.js wysyla nowe dane gdy gracz jest na ~polowie znanych danych.
 
-  t≈800ms: Child.js wysyla pakiet type 4 z poziomami 10-19:
+  t≈800ms: apps/child-gameserver/main.js wysyla pakiet type 4 z poziomami 10-19:
             [01][04][0A]  [80 kafle×128] × 10
              1  t=4  10
             hgm case 4:
@@ -5232,7 +5232,7 @@
             Teraz advCyl() przy ringGroupIndex=10 znajdzie levels[10] → OK
 
   t≈2000ms: ringGroupIndex osiagnie ~19
-            Child.js znowu wysyla type 4 z poziomami 20-29
+            apps/child-gameserver/main.js znowu wysyla type 4 z poziomami 20-29
             ...i tak w nieskonszonosc.
 
 ================================================================================

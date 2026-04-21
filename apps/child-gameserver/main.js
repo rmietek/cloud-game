@@ -1002,7 +1002,7 @@ const tokens  = {};
  *   1. Gracz klika "Dołącz" w lobby
  *   2. Mother server (lobby) generuje UUID token i wysyła przez Redis pub/sub:
  *      redis.publish("join:<game_id>", JSON.stringify({token: "abc-123", name: "Kacper", ...}))
- *   3. Nasz child.js odbiera token → tokens["abc-123"] = {...}
+ *   3. Nasz apps/child-gameserver/main.js odbiera token → tokens["abc-123"] = {...}
  *   4. Gracz łączy się WebSocketem: ws://ip:port/abc-123
  *   5. upgrade() sprawdza have_token("abc-123") → OK → połączenie dozwolone
  *   6. open() zużywa token: delete tokens["abc-123"] → nie można użyć ponownie

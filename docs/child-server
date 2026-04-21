@@ -2,9 +2,9 @@
 
 ## 1. Cel i architektura
 
-`child.js` to stanowy serwer gry czasu rzeczywistego. Określenie "stanowy" jest kluczowe — oznacza, że serwer przechowuje w pamięci kompletny stan rozgrywki: pozycje wszystkich graczy i botów, punkty, mapę poziomów, tokeny autoryzacyjne. W przeciwieństwie do bezstanowych serwisów HTTP (gdzie każde żądanie jest niezależne), tutaj jedna instancja procesu zarządza jedną konkretną sesją gry od jej początku aż do końca.
+`apps/child-gameserver/main.js` to stanowy serwer gry czasu rzeczywistego. Określenie "stanowy" jest kluczowe — oznacza, że serwer przechowuje w pamięci kompletny stan rozgrywki: pozycje wszystkich graczy i botów, punkty, mapę poziomów, tokeny autoryzacyjne. W przeciwieństwie do bezstanowych serwisów HTTP (gdzie każde żądanie jest niezależne), tutaj jedna instancja procesu zarządza jedną konkretną sesją gry od jej początku aż do końca.
 
-Każda instancja `child.js` obsługuje do 15 (można to zmienić) ludzkich graczy i 37 botów AI. 
+Każda instancja `apps/child-gameserver/main.js` obsługuje do 15 (można to zmienić) ludzkich graczy i 37 botów AI. 
 
 Serwer działa jako **Agones GameServer** w Kubernetes. Agones to system do zarządzania serwerami gier na K8s, stworzony przez Google i Ubisoft. Normalny Kubernetes świetnie radzi sobie ze skalowaniem bezstanowych serwerow HTTP, ale serwery gier są stanowe — nie można „zabić" poda w którym trwa rozgrywka. Agones rozwiązuje ten problem przez cykl życia: serwer sygnalizuje kiedy jest gotowy, kiedy ma przydzielonych graczy i kiedy może być zamknięty.
 

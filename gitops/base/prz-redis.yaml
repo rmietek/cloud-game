@@ -4,12 +4,12 @@
 # 
 # Rola w architekturze:
 #   HASH game:{id}   — metadane serwera gry (IP, port, liczba graczy, nazwa, region)
-#                      zapisywane przez child.js przy starcie, odczytywane przez mother.js
-#   SET  game_ids    — lista aktywnych ID gier (mother.js czyta by zbudować listę lobby)
-#   PUB  lobby_update — child.js publikuje gdy zmienia się stan gry (ktoś dołączył/wyszedł)
-#                       mother.js subskrybuje i pushuje aktualizację do wszystkich klientów WS
-#   PUB  join:{id}   — mother.js publikuje token gracza chcącego dołączyć
-#                       child.js subskrybuje i wpuszcza gracza do gry
+#                      zapisywane przez apps/child-gameserver/main.js przy starcie, odczytywane przez apps/mother-lobby/main.js
+#   SET  game_ids    — lista aktywnych ID gier (apps/mother-lobby/main.js czyta by zbudować listę lobby)
+#   PUB  lobby_update — apps/child-gameserver/main.js publikuje gdy zmienia się stan gry (ktoś dołączył/wyszedł)
+#                       apps/mother-lobby/main.js subskrybuje i pushuje aktualizację do wszystkich klientów WS
+#   PUB  join:{id}   — apps/mother-lobby/main.js publikuje token gracza chcącego dołączyć
+#                       apps/child-gameserver/main.js subskrybuje i wpuszcza gracza do gry
 #
 #
 #   Child zapisuje:  "Istnieje gra EU-Phantom, port 7001, 3/10 graczy"
@@ -19,7 +19,7 @@
 #
 #
 # Dlaczego --save "": wyłącza zapis RDB (snapshots) na dysk.
-#   Dane w Redis to stan przejściowy (aktywne gry) — po restarcie child.js
+#   Dane w Redis to stan przejściowy (aktywne gry) — po restarcie apps/child-gameserver/main.js
 #
 # ─────────────────────────────────────────────────────────────────────────────
 apiVersion: v1

@@ -56,11 +56,11 @@ spec:
     spec:
       ports:
       - name: default
-        containerPort: 5000 # Port domyślny w child.js. Agones przydzieli port zewnętrzny
+        containerPort: 5000 # Port domyślny w apps/child-gameserver/main.js. Agones przydzieli port zewnętrzny
         protocol: TCP       # z puli 7000-8000 i poda graczowi adres do połączenia.
       template:
         spec:
-          # 15 sekund na zamknięcie — child.js może poinformować graczy
+          # 15 sekund na zamknięcie — apps/child-gameserver/main.js może poinformować graczy
           # "serwer kończy pracę" zanim Kubernetes siłowo go wyłączy.
           terminationGracePeriodSeconds: 15
 
@@ -83,8 +83,8 @@ spec:
                 secretKeyRef:
                   name: cosmos-db-secret  # Hasło do bazy danych (ukryte w Kubernetes Secret)
                   key: MONGO_URL          # Connection string do CosmosDB
-            - name: USE_AGONES            # Parametr przekazywany do child.js:
-              value: "true"               # Mówi child.js żeby korzystał z Agones (zarządzanie portem i statusem)
+            - name: USE_AGONES            # Parametr przekazywany do apps/child-gameserver/main.js:
+              value: "true"               # Mówi apps/child-gameserver/main.js żeby korzystał z Agones (zarządzanie portem i statusem)
 
 ---
 
@@ -122,5 +122,5 @@ spec:
 #
 #   Fleet controller (część Agones):
 #     słyszy → "mam mieć 6, mam 5"
-#     robi   → tworzy 1 nowy pod z child.js
+#     robi   → tworzy 1 nowy pod z apps/child-gameserver/main.js
 # ─────────────────────────────────────────────────────────────────────────────

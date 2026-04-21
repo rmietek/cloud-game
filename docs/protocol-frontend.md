@@ -473,7 +473,7 @@ lightSkins = p.g_int32_arr();  // kolory 23 skinów
 alert('Server is full — try again in a moment.');
 ```
 
-> **Uwaga:** `mother.js` aktualnie **nigdy nie wysyła** tego pakietu — przy pełnym serwerze odrzuca żądanie. Handler istnieje do przyszłego użycia.
+> **Uwaga:** `apps/mother-lobby/main.js` aktualnie **nigdy nie wysyła** tego pakietu — przy pełnym serwerze odrzuca żądanie. Handler istnieje do przyszłego użycia.
 
 ---
 
@@ -499,7 +499,7 @@ Wysyłamy po naciśnięciu Enter w polu czatu.
 ```javascript
 // index.html
 packetSender.index--;        // cofnij wskaźnik — nadpisz poprzedni typ w buforze
-packetSender.s_uint8(1);     // Typ 1 = czat (case 1 w child.js)
+packetSender.s_uint8(1);     // Typ 1 = czat (case 1 w apps/child-gameserver/main.js)
 packetSender.s_string16(this.value);
 gs.send(packetSender.get_buf());
 ```
@@ -600,7 +600,7 @@ for (let ix = p.g_length8(); ix--;) {
 for (let ix = p.g_length8(); ix--;) p.g_uint8(); // odczyt ale odrzucanie
 ```
 
-> **Uwaga:** `child.js` wysyła ID odrodzonych graczy, ale frontend aktualnie tylko przesuwa wskaźnik odczytu. Zarezerwowane do przyszłej implementacji.
+> **Uwaga:** `apps/child-gameserver/main.js` wysyła ID odrodzonych graczy, ale frontend aktualnie tylko przesuwa wskaźnik odczytu. Zarezerwowane do przyszłej implementacji.
 
 ### Type `7` — Lista martwych (przy inicjalizacji)
 

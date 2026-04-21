@@ -252,30 +252,30 @@ joinGame(gameId=3847291650, name="Phantom", skinId=3, accountId="...")
 await redis.publish(`join:${gameId}`, JSON.stringify({ token, name, skin_id, account }));
 //                          ↑
 //                 3847291650 — ID przesłane przez klienta
-// Tylko child.js z game_id = 3847291650 odbierze tę wiadomość.
+// Tylko apps/child-gameserver/main.js z game_id = 3847291650 odbierze tę wiadomość.
 ```
 
 ### Schemat przepływu ID
 
 ```
-child.js (game_id=3847291650)
+apps/child-gameserver/main.js (game_id=3847291650)
     │── redis: hSet game:3847291650 {...}
     │── redis: sAdd game_ids "3847291650"
     │── redis: subscribe join:3847291650   ← czeka na wiadomości
     │
-mother.js
+apps/mother-lobby/main.js
     │── redis: sMembers game_ids          → ["3847291650", "1234567890"]
     │── redis: hGetAll game:3847291650    → { port, ip, players... }
     │── WS: send Type2 → Klient           → lista gier z ich ID
     │
 Klient
     │── wybrał "EU-Nexus" (id=3847291650)
-    │── WS: send joinGame(gameId=3847291650, ...) → mother.js
+    │── WS: send joinGame(gameId=3847291650, ...) → apps/mother-lobby/main.js
     │
-mother.js
-    │── redis: publish join:3847291650    ← celuje w konkretny child.js
+apps/mother-lobby/main.js
+    │── redis: publish join:3847291650    ← celuje w konkretny apps/child-gameserver/main.js
     │
-child.js (game_id=3847291650)
+apps/child-gameserver/main.js (game_id=3847291650)
     └── odbiera! bo subskrybuje join:3847291650
 ```
 
@@ -284,7 +284,7 @@ child.js (game_id=3847291650)
 ## 6. Szczegółowy 9-krokowy Join Flow
 
 ```
-Klient WS       mother.js               Redis               child.js
+Klient WS       apps/mother-lobby/main.js               Redis               apps/child-gameserver/main.js
     │               │                      │                     │
     │  KROK 1       │                      │                     │
     │──joinGame────►│                      │                     │

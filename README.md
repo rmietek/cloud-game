@@ -37,7 +37,7 @@ Aplikacja jest w **pełni responsywna** — na desktopie grasz klawiaturą lub p
 
 | Akcja | Desktop | Mobile |
 |---|---|---|
-| **Ruch na boki** | Strzałki `←` / `→` lub `A` / `D` | Przesuwanie palcem po ekranie (lewo / prawo) |
+| **Ruch na boki** | Strzałki `←` / `→` lub `A` / `D`  lub przeciąganie myszą <br>(z wciśniętym lewym przyciskiem myszy) | Przesuwanie palcem po ekranie (lewo / prawo) |
 
 ---
 

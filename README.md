@@ -97,13 +97,13 @@ Przeglądarka gracza
 Mother (K8s Deployment, HPA 1–10 replik)
   ├─ Express HTTP  :9876   → rejestracja, logowanie, pliki statyczne
   ├─ uWebSockets   :3001   → WebSocket lobby
-  ├─ Redis pub/sub          → lista serwerów, tokeny dołączenia
+  ├─ Redis pub/sub         → lista serwerów, tokeny dołączenia
   └─ CosmosDB (MongoDB)    → konta graczy
 
 Child (Agones Fleet, 1–20 GameServerów)
   ├─ uWebSockets   :5000   → WebSocket gra
-  ├─ Agones SDK             → cykl życia (Ready / Allocated / Shutdown)
-  ├─ Redis pub/sub          → rejestracja serwera, odbiór tokenów
+  ├─ Agones SDK            → cykl życia (Ready / Allocated / Shutdown)
+  ├─ Redis pub/sub         → rejestracja serwera, odbiór tokenów
   └─ CosmosDB (MongoDB)    → zapis punktów po sesji
 
 Redis  →  HASH game:{id}, SET game_ids, PUB/SUB

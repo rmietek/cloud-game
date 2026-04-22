@@ -31,7 +31,7 @@ Aplikacja jest w **pełni responsywna** — na desktopie grasz klawiaturą lub p
 
 | Desktop | Mobile |
 |:---:|:---:|
-| ![Widok Desktop](screenshots/desktop.png) | ![Widok Mobile](screenshots/mobile.png) |
+| ![Widok Desktop](screenshots/desktop-2.png) | ![Widok Mobile](screenshots/mobile.png) |
 
 </div>
 

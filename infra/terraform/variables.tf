@@ -93,7 +93,7 @@ variable "github_org" {
 variable "github_repo" {
   description = "Nazwa repozytorium GitHub"
   type        = string
-  default     = "cloud-game"
+  default     = "test"
 }
 
 # ---------- GitHub PAT — token dostępu dla ArgoCD ----------

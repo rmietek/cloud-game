@@ -21,6 +21,12 @@
 
 </div>
 
+> [!WARNING]
+> **Serwer jest tymczasowo wyłączony**
+> 
+> Niestety, gra jest w tym momencie niedostępna. W ramach naszej subskrypcji studenckiej (na której hostowany jest projekt) wykorzystaliśmy już całą pulę bezpłatnych środków na ten okres. 
+> Aplikacja znów będzie działać, gdy tylko odnowi się limit na koncie.
+
 ---
 
 ## 📸 Zrzuty ekranu

@@ -93,12 +93,14 @@ jobs:
           az group create \
             --name PRZ-tfstate \
             --location polandcentral \
+            --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }} \
             --output none
 
           az storage account create \
             --name przterraformstate \
             --resource-group PRZ-tfstate \
             --location polandcentral \
+            --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }} \
             --sku Standard_LRS \
             --allow-blob-public-access false \
             --output none

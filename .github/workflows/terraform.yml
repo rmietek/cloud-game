@@ -74,6 +74,9 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Ustaw subskrypcję
+        run: az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        
       # ── PRZYGOTOWANIE MIEJSCA NA PAMIĘĆ TERRAFORMA ──────────────────────────
       # Terraform zapamiętuje co stworzył w pliku zwanym "stanem" (state).
       # Ten plik MUSI być gdzieś bezpiecznie przechowany — nie może być w repo Git

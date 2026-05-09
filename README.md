@@ -35,9 +35,25 @@ Aplikacja jest w **pełni responsywna** — na desktopie grasz klawiaturą lub p
 
 <div align="center">
 
-| Desktop | Mobile |
-|:---:|:---:|
-| ![Widok Desktop](screenshots/desktop-2.png)<br>![Gameplay](screenshots/gameplay.png) | ![Widok Mobile](screenshots/mobile.png) |
+<table align="center">
+  <tr>
+    <th>Desktop</th>
+    <th>Mobile</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/desktop-2.png"/></td>
+    <td align="center" rowspan="2"><img src="screenshots/mobile.png"/></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshots/gameplay.png"/></td>
+  </tr>
+  <tr>
+    <th colspan="2">Sklep</th>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="screenshots/shop.png"/></td>
+  </tr>
+</table>
 
 </div>
 

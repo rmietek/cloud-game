@@ -122,10 +122,7 @@ Pełna dokumentacja techniczna znajduje się w katalogu [`docs/`](docs/).
                                    │ (Child)  │
                                    │ zapis    │
                                    └──────────┘
-```
 
-
-```
 Przeglądarka gracza
   │
   ├─ HTTP POST /auth/register|login    → Mother Express (port 9876)

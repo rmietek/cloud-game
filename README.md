@@ -95,16 +95,55 @@ Pełna dokumentacja techniczna znajduje się w katalogu [`docs/`](docs/).
 ## 🏗️ Architektura
 
 ```
+ ┌──────────────────────────────────────────────────┐
+ │                   PRZEGLĄDARKA                   │
+ └────┬──────────────────┬───────────────┬──────────┘
+      │ HTTP :80         │ WS :3001      │ WS :7000-8000
+      ▼                  ▼ (lobby)       │ (gra)
+ ┌───────────────────────────────┐       │
+ │        MOTHER SERVER          │       │
+ │      (HPA: 1–10 replik)       │       │
+ │  Express HTTP │ uWebSockets   │       │
+ └───┬───────────────────────────┘       │
+     │           │                       │
+     │     pub: join:{id}                │
+     │     sub: lobby_update             │
+     │           │                       │
+     ▼           ▼                       ▼
+┌──────────┐  ┌───────────┐      ┌──────────────────┐   ┌─────────┐
+│ COSMOSDB │  │   REDIS   │      │   CHILD SERVER   │◄──│  AGONES │
+│ (Mother) │  │ HASH/SET  │◄────►│  (Agones: 1–20)  │──►│   SDK   │
+│ konta,   │  │ PUB/SUB   │      │  fizyka @ 62.5Hz │   │ sidecar │
+│ skiny    │  └───────────┘      └────────┬─────────┘   └─────────┘
+└──────────┘       sub: join:{id}         │         Ready/Allocated
+                  pub: lobby_update       ▼         /Shutdown + IP:port
+                      hSet, sAdd   ┌──────────┐
+                                   │ COSMOSDB │
+                                   │ (Child)  │
+                                   │ zapis    │
+                                   └──────────┘
+```
+
+
+```
 Przeglądarka gracza
-  ├─ HTTP POST /auth/*          → Mother Express  (port 9876)
-  ├─ WebSocket ws://LB:3001     → Mother uWS       (lobby)
-  └─ WebSocket ws://IP:PORT/TOK → Child uWS        (gra, 62.5 tick/s)
+  │
+  ├─ HTTP POST /auth/register|login    → Mother Express (port 9876)
+  │
+  ├─ WebSocket ws://LB:3001            → Mother uWS (port 3001)
+  │    ├─ Pobiera listę serwerów gier
+  │    ├─ Wysyła pakiet dołączenia do gry 
+  │    └─ Odbiera token + IP:port serwera gry do którego ma dołączyć przez WS
+  │
+  └─ WebSocket ws://NODE_IP:PORT/TOKEN → Child uWS (port 7000–8000)
+       ├─ Wysyła pakiety gracza
+       └─ Odbiera stan gry pakietami binarnymi @ 62,5 tick/s
 
 Mother (K8s Deployment, HPA 1–10 replik)
   ├─ Express HTTP  :9876   → rejestracja, logowanie, pliki statyczne
-  ├─ uWebSockets   :3001   → WebSocket lobby
+  ├─ uWebSockets   :3001   → WebSocket lobby + sklep skinów (zakup za punkty)
   ├─ Redis pub/sub         → lista serwerów, tokeny dołączenia
-  └─ CosmosDB (MongoDB)    → konta graczy
+  └─ CosmosDB (MongoDB)    → konta graczy, skiny, punkty
 
 Child (Agones Fleet, 1–20 GameServerów)
   ├─ uWebSockets   :5000   → WebSocket gra
@@ -112,8 +151,17 @@ Child (Agones Fleet, 1–20 GameServerów)
   ├─ Redis pub/sub         → rejestracja serwera, odbiór tokenów
   └─ CosmosDB (MongoDB)    → zapis punktów po sesji
 
-Redis  →  HASH game:{id}, SET game_ids, PUB/SUB
-Azure  →  AKS + ACR + CosmosDB + NSG (TCP 7000–8000)
+Redis
+  └─ PUB/SUB → lobby_update, join:{game_id}
+
+CosmosDB (Azure Managed MongoDB API)
+  └─ db=gra, collection=users → konta graczy, punkty, skiny
+
+Azure Infrastructure
+  ├─ AKS (1 węzeł standard_b2s_v2, node_public_ip_enabled=true)
+  ├─ ACR (przacr.azurecr.io)
+  ├─ NSG (AllowAgonesPorts: TCP 7000-8000 inbound)
+  └─ CosmosDB (prz-cosmos-db)
 ```
 
 ---
